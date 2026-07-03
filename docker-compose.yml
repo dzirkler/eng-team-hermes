@@ -17,19 +17,45 @@ services:
       - "127.0.0.1:9119:9119"   # dashboard — see dashboard auth note below
 
     environment:
+      # Z_AI_API_KEY stays the REAL Z.AI key — do NOT replace it with the
+      # LiteLLM virtual key. config/config.yaml's mcp_servers.zai-vision and
+      # zai-web-search reference ${Z_AI_API_KEY} directly against real Z.AI
+      # endpoints (image analysis, web search) that are NOT proxied through
+      # LiteLLM; overwriting this var would break those two MCP tools.
       - Z_AI_API_KEY=${Z_AI_API_KEY}
-      # Pin the Z.AI base URL explicitly rather than relying solely on each
-      # profile's config.yaml `model.base_url`. Confirmed live 2026-07-03:
-      # hermes_cli/auth.py's _resolve_zai_base_url() runs a background
-      # endpoint auto-probe (global/cn/coding-global/coding-cn) on every
-      # agent init, and in observed testing the probe's result won a race
-      # against the configured model.base_url in 1 of 4 calls (landing on
-      # the wrong, non-coding-plan `open.bigmodel.cn` endpoint even though
-      # every profile's config.yaml explicitly set the coding endpoint).
-      # GLM_BASE_URL is checked first and short-circuits the probe entirely
-      # (`if env_override: return env_override`, before any probing) — this
-      # is the reliable way to pin the endpoint, not model.base_url alone.
-      - GLM_BASE_URL=${GLM_BASE_URL:-https://api.z.ai/api/coding/paas/v4}
+      # The main chat model's LiteLLM virtual key (2026-07-03, per-team
+      # token-usage tracking). Hermes's built-in "zai" provider resolves its
+      # API key from hermes_cli/auth.py's PROVIDER_REGISTRY["zai"], whose
+      # api_key_env_vars tuple is (GLM_API_KEY, ZAI_API_KEY, Z_AI_API_KEY) —
+      # confirmed by reading resolve_api_key_provider_credentials() /
+      # _resolve_api_key_provider_secret(), which try each in that order and
+      # return the first one that's set. Each profile's config.yaml
+      # `model.api_key_env` field is NEVER consulted for this resolution
+      # (confirmed live: pointing it at a nonexistent env var did not break
+      # anything — the call still succeeded via Z_AI_API_KEY). So GLM_API_KEY
+      # — checked first, before Z_AI_API_KEY — is the clean way to give the
+      # main chat model a different credential (the LiteLLM virtual key)
+      # without disturbing Z_AI_API_KEY's separate MCP-tool use above.
+      - GLM_API_KEY=${GLM_API_KEY}
+      # Pin the base URL explicitly. hermes_cli/runtime_provider.py's
+      # generic API-key-provider branch does honour model.base_url from
+      # config.yaml when model.provider matches (confirmed by reading
+      # resolve_runtime_provider(): cfg_base_url wins over the probed
+      # creds.base_url whenever cfg_provider == provider) — but
+      # _resolve_zai_base_url() is still unconditionally called first and
+      # runs a background Z.AI endpoint auto-probe (global/cn/coding-global/
+      # coding-cn) whenever this env var is unset, logged as "Z.AI:
+      # auto-detected endpoint ...". In observed live testing before this
+      # var was set, some code path used that probed result instead of
+      # model.base_url in 1 of 4 calls. GLM_BASE_URL is checked before any
+      # probing (`if env_override: return env_override`) and eliminates the
+      # auto-probe entirely regardless of what URL it holds — confirmed
+      # live: 9+ consecutive calls after setting it show zero auto-detect
+      # log lines. This also makes it the correct way to point the main
+      # chat model at a non-Z.AI endpoint like a LiteLLM proxy — now pointed
+      # at the team's LiteLLM proxy (fronts Z.AI/GLM for per-team
+      # virtual-key token tracking) instead of api.z.ai directly.
+      - GLM_BASE_URL=${GLM_BASE_URL:-https://litellm.home.zirkler.com/v1}
       - HERMES_DASHBOARD=1
       # Dashboard auth is MANDATORY as of the June 2026 hardening for any
       # non-loopback bind, and the dashboard binds 0.0.0.0 *inside* the

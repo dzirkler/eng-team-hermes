@@ -12,9 +12,11 @@ model:
   # (run the app, report pass/fail), fits comfortably in GLM-4.7's 200K.
   default: glm-4.7
   api_key_env: Z_AI_API_KEY
-  # Coding Plan endpoint (2026-07-03) — same Z_AI_API_KEY works against
-  # both endpoints; see config/config.yaml for full rationale.
-  base_url: https://api.z.ai/api/coding/paas/v4
+  # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
+  # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.
+  # GLM_BASE_URL + GLM_API_KEY in docker-compose.yml are what's actually
+  # load-bearing; see config/config.yaml for full rationale.
+  base_url: https://litellm.home.zirkler.com/v1
 
 platform_toolsets:
   cli:

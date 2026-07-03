@@ -90,26 +90,43 @@ The actual per-profile persona/config split is:
   prompt automatically (confirmed real, this part of the original design
   was correct).
 
-**`model.base_url` (added 2026-07-03):** every profile's `model:` block now
-sets `base_url: https://api.z.ai/api/coding/paas/v4` — this team qualifies
-for Z.AI's Coding Plan, and `model.base_url` is a real config field that
-overrides the `zai` provider's built-in standard-endpoint default (confirmed
-in `providers/base.py` / `hermes_cli/config.py` inside a live container).
-The same `Z_AI_API_KEY` works against both the standard and coding
-endpoints — verified live, no auth error — so this didn't require a second
-key.
+**`model.base_url` (added 2026-07-03, since re-pointed):** every profile's
+`model:` block sets `base_url`, currently `https://litellm.home.zirkler.com/v1`
+— the team's LiteLLM proxy, for per-team token-usage tracking via virtual
+keys (originally the Z.AI Coding Plan endpoint directly; see
+`docs/temp/V3-Supplement-Model-and-Key-Binding.md` §8/§9 for both moves).
+`model.base_url` is a real config field that overrides the `zai` provider's
+built-in standard-endpoint default (confirmed in `providers/base.py` /
+`hermes_cli/config.py` inside a live container) and does correctly take
+precedence when `model.provider` matches (confirmed in
+`hermes_cli/runtime_provider.py`'s generic API-key-provider branch).
 
-**Do not rely on `model.base_url` alone.** Live testing found a real race:
-Hermes probes Z.AI endpoints on every agent init
-(`hermes_cli/auth.py:_resolve_zai_base_url`), and that probe's result won
-over the configured `model.base_url` in 1 of 4 observed calls, silently
-landing on the wrong (non-coding) endpoint. The env var `GLM_BASE_URL`
-short-circuits the probe entirely and is set container-wide in
-`docker-compose.yml`'s `environment:` block — that's the actually
-load-bearing pin; `model.base_url` in each profile's config.yaml is
-belt-and-suspenders on top of it. See
-`docs/temp/V3-Supplement-Model-and-Key-Binding.md` §8 for the full writeup
-and the repeated-call evidence.
+**Don't rely on `model.base_url` alone — pin `GLM_BASE_URL` too.** Live
+testing found a real race: Hermes's Z.AI endpoint auto-probe
+(`hermes_cli/auth.py:_resolve_zai_base_url`) runs unconditionally on every
+agent init, and its result won over the configured `model.base_url` in 1 of
+4 observed calls before this was pinned. `GLM_BASE_URL` is checked before
+any probing and short-circuits it entirely, regardless of what URL it
+holds — which is also what makes it the correct way to point the main
+chat model at a non-Z.AI endpoint like a LiteLLM proxy. Set container-wide
+in `docker-compose.yml`'s `environment:` block; that's the actually
+load-bearing pin, `model.base_url` is belt-and-suspenders documentation
+on top of it.
+
+**`model.api_key_env` is decorative for the built-in `zai` provider — the
+real key always comes from one of three hardcoded env vars.** Confirmed
+live (pointing `api_key_env` at a nonexistent variable didn't break
+anything) and in source (`hermes_cli/auth.py`'s
+`resolve_api_key_provider_credentials()` resolves purely from
+`PROVIDER_REGISTRY["zai"].api_key_env_vars`, the fixed tuple
+`(GLM_API_KEY, ZAI_API_KEY, Z_AI_API_KEY)`, first one set wins).
+`config/config.yaml`'s `mcp_servers.zai-vision`/`zai-web-search` hit real
+Z.AI endpoints directly via `${Z_AI_API_KEY}` (not proxied through
+LiteLLM), so `Z_AI_API_KEY` stays the real Z.AI key and `GLM_API_KEY`
+(checked first) holds the LiteLLM virtual key for the main chat model —
+no conflict between the two concerns. See
+`docs/temp/V3-Supplement-Model-and-Key-Binding.md` §8/§9 for the full
+writeup and repeated-call evidence for both fixes.
 
 ### Guardrail mechanism (the open question this whole rewrite was about)
 

@@ -91,6 +91,12 @@ fi
 env_values["PROJECT_NAME"]="$PROJECT_NAME"
 env_values["PROJECT_REPO_PATH"]="$REPO_PATH"
 : "${env_values[Z_AI_API_KEY]:=replace-me}"
+# GLM_API_KEY (LiteLLM virtual key, main chat model) and GLM_BASE_URL
+# (LiteLLM proxy) — added 2026-07-03, see docker-compose.yml's comment for
+# why these are separate from Z_AI_API_KEY (which stays the real Z.AI key
+# for the two direct-to-Z.AI MCP tools in config/config.yaml).
+: "${env_values[GLM_API_KEY]:=replace-me}"
+: "${env_values[GLM_BASE_URL]:=https://litellm.home.zirkler.com/v1}"
 : "${env_values[HERMES_IMAGE_TAG]:=latest}"
 : "${env_values[HERMES_DASHBOARD_USERNAME]:=damon}"
 
@@ -110,6 +116,9 @@ done
 
 if [[ "${env_values[Z_AI_API_KEY]}" == "replace-me" ]]; then
   echo "    !! Z_AI_API_KEY not set — edit .env before starting the container."
+fi
+if [[ "${env_values[GLM_API_KEY]}" == "replace-me" ]]; then
+  echo "    !! GLM_API_KEY not set (LiteLLM virtual key) — edit .env before starting the container."
 fi
 
 # ---------------------------------------------------------------------

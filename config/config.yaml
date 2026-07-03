@@ -22,19 +22,31 @@ model:
   # Confirmed real: "zai" is a canonical provider slug and "glm-5.2" is a
   # listed model id for it (hermes_cli/models.py PROVIDER_MODELS["zai"]).
   default: glm-5.2
+  # NOTE: this field is decorative for the built-in "zai" provider — Hermes
+  # NEVER reads model.api_key_env at runtime for it. Confirmed two ways:
+  # (1) reading hermes_cli/auth.py's resolve_api_key_provider_credentials(),
+  # which resolves the key purely from PROVIDER_REGISTRY["zai"]'s hardcoded
+  # api_key_env_vars tuple (GLM_API_KEY, ZAI_API_KEY, Z_AI_API_KEY, in that
+  # priority order) — this config value is never consulted; (2) a live test
+  # 2026-07-03: pointing this field at a nonexistent env var didn't break
+  # anything, the call still succeeded via Z_AI_API_KEY. The actual key in
+  # use is whichever of those three env vars is set container-wide (see
+  # docker-compose.yml) — currently GLM_API_KEY (checked first), holding
+  # the team's LiteLLM virtual key. Left as Z_AI_API_KEY here only so this
+  # file documents *a* valid value, not because Hermes reads it.
   api_key_env: Z_AI_API_KEY
-  # Coding Plan endpoint (2026-07-03 decision, all profiles): this team
-  # qualifies for Z.AI's GLM Coding Plan, and the same Z_AI_API_KEY works
-  # against both the standard API endpoint and this one (confirmed live —
-  # do not assume separate per-endpoint keys, despite hermes_cli/auth.py's
-  # ZAI_ENDPOINTS probe existing to handle accounts where that isn't true).
-  # `model.base_url` overrides the "zai" provider's built-in
-  # api.z.ai/api/paas/v4 default and takes precedence over it (confirmed:
-  # providers/base.py get_models() precedence + config.py's config-migration
-  # code both treat model.base_url as the caller override). Verified live
-  # 2026-07-03: session record billing_base_url == this value for both a
-  # glm-5.2 and a glm-4.7 call, same key, no auth error.
-  base_url: https://api.z.ai/api/coding/paas/v4
+  # Endpoint (2026-07-03): routed through the team's LiteLLM proxy for
+  # per-team token-usage tracking via virtual keys, not directly at Z.AI's
+  # Coding Plan endpoint anymore (see docs/temp/V3-Supplement-Model-and-Key-Binding.md
+  # §9 for the full writeup). `model.base_url` here does correctly take
+  # precedence over the provider's built-in default when model.provider
+  # matches (confirmed in hermes_cli/runtime_provider.py's generic
+  # API-key-provider branch) — but the actually load-bearing pin is the
+  # GLM_BASE_URL env var in docker-compose.yml, which also eliminates a
+  # background auto-probe race (see that file's comment). Keep this in
+  # sync with GLM_BASE_URL as documentation, but don't rely on this field
+  # alone.
+  base_url: https://litellm.home.zirkler.com/v1
 
 kanban:
   dispatch_interval_seconds: 60
@@ -56,6 +68,12 @@ mcp_servers:
   # Reformatted 1:1 from D:\code\eng-team-plugin\.mcp.json, with the
   # previously-hardcoded API key replaced by the Z_AI_API_KEY env var
   # (set via .env / docker-compose, never written to this file).
+  #
+  # These two hit REAL Z.AI endpoints directly — they are NOT proxied
+  # through the LiteLLM base_url above (unlike the main model.* block,
+  # this is Z.AI's own MCP server / API, unrelated to chat completions).
+  # Z_AI_API_KEY must stay the real Z.AI key for these to keep working;
+  # do not repoint it at the LiteLLM virtual key (see docker-compose.yml).
   zai-vision:
     command: npx
     args: ["-y", "@z_ai/mcp-server@latest"]

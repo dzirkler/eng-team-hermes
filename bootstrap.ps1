@@ -93,6 +93,12 @@ if (Test-Path .env) {
 $envValues["PROJECT_NAME"] = $ProjectName
 $envValues["PROJECT_REPO_PATH"] = $RepoPath
 if (-not $envValues["Z_AI_API_KEY"]) { $envValues["Z_AI_API_KEY"] = "replace-me" }
+# GLM_API_KEY (LiteLLM virtual key, main chat model) and GLM_BASE_URL
+# (LiteLLM proxy) — added 2026-07-03, see docker-compose.yml's comment for
+# why these are separate from Z_AI_API_KEY (which stays the real Z.AI key
+# for the two direct-to-Z.AI MCP tools in config/config.yaml).
+if (-not $envValues["GLM_API_KEY"]) { $envValues["GLM_API_KEY"] = "replace-me" }
+if (-not $envValues["GLM_BASE_URL"]) { $envValues["GLM_BASE_URL"] = "https://litellm.home.zirkler.com/v1" }
 if (-not $envValues["HERMES_IMAGE_TAG"]) { $envValues["HERMES_IMAGE_TAG"] = "latest" }
 if (-not $envValues["HERMES_DASHBOARD_USERNAME"]) { $envValues["HERMES_DASHBOARD_USERNAME"] = "damon" }
 if (-not $envValues["HERMES_DASHBOARD_PASSWORD"] -or $envValues["HERMES_DASHBOARD_PASSWORD"] -eq "replace-me") {
@@ -109,6 +115,9 @@ if (-not $envValues["HERMES_DASHBOARD_SECRET"] -or $envValues["HERMES_DASHBOARD_
 
 if ($envValues["Z_AI_API_KEY"] -eq "replace-me") {
     Write-Host "    !! Z_AI_API_KEY not set - edit .env before starting the container."
+}
+if ($envValues["GLM_API_KEY"] -eq "replace-me") {
+    Write-Host "    !! GLM_API_KEY not set (LiteLLM virtual key) - edit .env before starting the container."
 }
 
 # ---------------------------------------------------------------------
