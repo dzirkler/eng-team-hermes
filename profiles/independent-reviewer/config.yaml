@@ -1,0 +1,45 @@
+# Independent Reviewer worker profile config.yaml — see
+# profiles/orchestrator/config.yaml for the full explanation of
+# platform_toolsets vs. hooks. Deliberately omits the `memory` toolset
+# entirely (not just hooked off) — this profile's entire value is a
+# genuinely fresh read with no access to the team's prior knowledge/
+# decisions, so there's no legitimate use case to leave that door open,
+# same reasoning as orchestrator omitting terminal/code_execution.
+#
+# No no_write_guard.js hook: this profile needs to write
+# specs/NNN-*/review-log.md, its only permitted write. There is no
+# per-file allow-list mechanism in Hermes's toolset schema (same gap noted
+# in other profiles' configs), so "review-log.md only" is enforced
+# behaviorally per SOUL.md, not mechanically — don't rely on the config
+# alone to stop this profile from editing spec.md/plan.md/tasks.md
+# directly; the discipline is in the persona instructions.
+
+model:
+  provider: zai
+  # Flagship tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
+  # cross-artifact consistency review is reasoning-heavy work.
+  default: glm-5.2
+  api_key_env: Z_AI_API_KEY
+  # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
+  # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.
+  # GLM_BASE_URL + GLM_API_KEY in docker-compose.yml are what's actually
+  # load-bearing; see config/config.yaml for full rationale.
+  base_url: https://litellm.home.zirkler.com/v1
+
+platform_toolsets:
+  cli:
+    - kanban
+    - file
+    - skills
+    - todo
+    - session_search
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10

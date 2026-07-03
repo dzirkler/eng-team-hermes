@@ -188,12 +188,12 @@ against a live container before being put in the scripts):
    not a mount — see Tier 1 above for why).
 2. `docker compose up -d`.
 3. `hermes profile create <name> --description "..." --no-alias` for each
-   of the 9 personas (orchestrator + 8 specialists — `full-stack-engineer`
+   of the 10 personas (orchestrator + 9 specialists — `full-stack-engineer`
    split into `senior-engineer`/`implementation-engineer` per
-   `docs/temp/V3-Supplement-Model-and-Key-Binding.md` §5) — this is the real
-   command; **there is no `hermes
-   kanban worker-profile apply`**, that was an invented command name that
-   doesn't exist in the CLI at all.
+   `docs/temp/V3-Supplement-Model-and-Key-Binding.md` §5; `independent-reviewer`
+   added 2026-07-03 for SDD Stage 8) — this is the real command; **there is
+   no `hermes kanban worker-profile apply`**, that was an invented command
+   name that doesn't exist in the CLI at all.
 4. Overlay `profiles/<name>/{config.yaml,SOUL.md}` onto
    `state/data/profiles/<name>/`, then `docker exec ... chown hermes:hermes`
    on the copied files (see the ownership note in Tier 2).

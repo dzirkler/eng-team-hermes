@@ -334,7 +334,7 @@ Resolve underspecified areas through targeted questioning.
 
 **The Clarify stage is a human checkpoint — NOT an autonomous stage.** When clarification questions are identified:
 
-1. **STOP immediately.** Do not proceed to Plan (Stage 4), Tasks (Stage 5), or Analyze (Stage 6).
+1. **STOP immediately.** Do not proceed to Plan (Stage 5), Tasks (Stage 6), or Analyze (Stage 7).
 2. **Present all clarification items** with context and, where possible, recommendations to the human approver.
 3. **Wait for the human approver to answer ALL questions.**
 4. **Only after all answers are received**, update the spec and proceed to Milestone 2.
@@ -412,7 +412,7 @@ Before planning implementation, ensure specification is complete and unambiguous
 </details>
 
 <details>
-<summary>🏗️ Stage 4: Plan</summary>
+<summary>🏗️ Stage 5: Plan</summary>
 
 ## Plan Stage
 
@@ -575,7 +575,7 @@ Before finalizing:
 </details>
 
 <details>
-<summary>✅ Stage 5: Tasks</summary>
+<summary>✅ Stage 6: Tasks</summary>
 
 ## Tasks Stage
 
@@ -683,7 +683,7 @@ Create `specs/NNN-feature/tasks.md`:
 </details>
 
 <details>
-<summary>🔍 Stage 6: Analyze</summary>
+<summary>🔍 Stage 7: Analyze</summary>
 
 ## Analyze Stage
 
@@ -776,7 +776,7 @@ None found
 </details>
 
 <details>
-<summary>⚙️ Stage 7: Implement</summary>
+<summary>⚙️ Stage 9: Implement</summary>
 
 ## Implement Stage
 
@@ -872,14 +872,14 @@ Feature is complete when:
 ├── specs/
 │   └── 001-feature-name/            # Numbered features
 │       ├── spec.md                  # Stage 2
-│       ├── plan.md                  # Stage 4
-│       ├── data-model.md            # Stage 4
-│       ├── contracts/               # Stage 4
+│       ├── plan.md                  # Stage 5
+│       ├── data-model.md            # Stage 5
+│       ├── contracts/               # Stage 5
 │       │   ├── api-spec.json
 │       │   └── signalr-spec.md
-│       ├── research.md              # Stage 4 (optional)
-│       ├── quickstart.md            # Stage 4 (optional)
-│       └── tasks.md                 # Stage 5
+│       ├── research.md              # Stage 5 (optional)
+│       ├── quickstart.md            # Stage 5 (optional)
+│       └── tasks.md                 # Stage 6
 ├── scripts/
 │   └── bash/
 │       ├── check-prerequisites.sh

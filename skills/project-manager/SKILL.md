@@ -248,9 +248,9 @@ Before any other work on a feature, ensure the feature branch has been pushed to
 
 The draft PR accumulates all commits during development and is converted to ready-for-review at Checkpoint 3. No feature branch should exist without a corresponding draft PR.
 
-## Stage 7 Dashboard Kickoff Checklist (feature-manifest-v2)
+## Stage 9 Dashboard Kickoff Checklist (feature-manifest-v2)
 
-When a feature enters SDD Stage 7 (Implement), the Project Manager owns the **dashboard kickoff**. The full schema details live in `.github/status/SCHEMA.md` (§1 agent-status-v2, §2 two-event write protocol, §3 feature-manifest-v2). The checklist below is the kickoff-day protocol — run every item on entry to Stage 7.
+When a feature enters SDD Stage 9 (Implement), the Project Manager owns the **dashboard kickoff**. The full schema details live in `.github/status/SCHEMA.md` (§1 agent-status-v2, §2 two-event write protocol, §3 feature-manifest-v2). The checklist below is the kickoff-day protocol — run every item on entry to Stage 9.
 
 ### 1. Generate `feature.json` v2 manifest (one-time)
 
@@ -310,7 +310,7 @@ pwsh -NoProfile -File <your-dashboard-loop-script> -IntervalSeconds 5 -TimeoutMi
 - **You must supply your own dashboard loop script.** The plugin ships the convention (the status-file schema under `.github/status/` and the two-event write protocol in `.github/status/SCHEMA.md`); it does NOT ship the loop script itself. Write your own equivalent of the invocation above that polls `.github/status/agents/*.json` and renders a dashboard HTML.
 - **CRITICAL: invoke with `pwsh.exe` (PowerShell 7), NOT `powershell.exe` (Windows PowerShell 5.1).** (Use PowerShell 7 only — earlier versions corrupt UTF-8 in the status JSON files.)
 - Use `mode=async` for the terminal — the loop is long-running.
-- The loop exits on its own when **all agents report `status="completed"`** OR after `TimeoutMinutes`. Don't leave it running past Stage 7.5.
+- The loop exits on its own when **all agents report `status="completed"`** OR after `TimeoutMinutes`. Don't leave it running past Stage 10.
 - Immediately report the dashboard path (`.github/status/dashboard.html`) back to the Orchestrator — do NOT wait for the loop to complete.
 
 ### 4. Verify in browser
@@ -333,14 +333,14 @@ Both header forms are canonical (per owner Q2):
 
 The parser accepts other shapes too (defensive fallback to one synthetic phase), but for any feature that uses phase/theme grouping, **use one of these two canonical forms** so the per-phase rows render meaningfully. See SCHEMA §4 for the exact regexes.
 
-### 6. Stage 7.5 cleanup
+### 6. Stage 10 cleanup
 
 When the feature completes (all `hitlCheckpoint`s passed + Checkpoint 3 approved), tear down:
 
 - **Kill the dashboard loop terminal** (capture its terminal ID at launch; verify by listing `pwsh` processes matching `pm-dashboard-loop` before kill).
 - Confirm `.github/status/` is clean for the next feature (archive or delete `feature.json`, `agents/*.json`, and the dashboard HTML per the SCHEMA §"Cleanup" convention).
 
-### Status Reporting (outside Stage 7)
+### Status Reporting (outside Stage 9)
 
 When you are not running the dashboard monitor, you still write status updates during any SDD stage. Use the same status file format (see `.github/status/SCHEMA.md`) at `.github/status/agents/pm-1.json`.
 

@@ -47,7 +47,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 PROFILE_NAMES=(orchestrator product-manager project-manager senior-engineer \
-               implementation-engineer quality-engineer debugger qa-analyst ux-designer)
+               implementation-engineer quality-engineer debugger qa-analyst ux-designer \
+               independent-reviewer)
 
 profile_description() {
   case "$1" in
@@ -60,6 +61,7 @@ profile_description() {
     debugger) echo "Investigates bugs and test failures, produces root-cause analysis; diagnoses only, never implements fixes." ;;
     qa-analyst) echo "Validates the running app via browser automation (Playwright) - functional and UX pass/fail reporting, no code access." ;;
     ux-designer) echo "Owns the design system and produces UX briefs (user flow, layouts, accessibility) ahead of implementation." ;;
+    independent-reviewer) echo "Fresh-eyes review of spec/plan/tasks/analyze-report before Checkpoint 2 - no memory access, reports findings only, never edits artifacts." ;;
   esac
 }
 

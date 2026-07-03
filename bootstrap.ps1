@@ -50,7 +50,7 @@ Set-Location $RootDir
 $ProfileNames = @(
     "orchestrator", "product-manager", "project-manager",
     "senior-engineer", "implementation-engineer", "quality-engineer",
-    "debugger", "qa-analyst", "ux-designer"
+    "debugger", "qa-analyst", "ux-designer", "independent-reviewer"
 )
 $ProfileDescriptions = @{
     "orchestrator"            = "Pure coordinator - creates and assigns Kanban tasks to specialist profiles, manages checkpoints, never writes code or files directly."
@@ -62,6 +62,7 @@ $ProfileDescriptions = @{
     "debugger"                = "Investigates bugs and test failures, produces root-cause analysis; diagnoses only, never implements fixes."
     "qa-analyst"              = "Validates the running app via browser automation (Playwright) - functional and UX pass/fail reporting, no code access."
     "ux-designer"             = "Owns the design system and produces UX briefs (user flow, layouts, accessibility) ahead of implementation."
+    "independent-reviewer"    = "Fresh-eyes review of spec/plan/tasks/analyze-report before Checkpoint 2 - no memory access, reports findings only, never edits artifacts."
 }
 
 Write-Host "==> Bootstrapping Hermes team for project: $ProjectName"
