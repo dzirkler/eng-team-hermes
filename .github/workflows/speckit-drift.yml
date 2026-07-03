@@ -1,0 +1,34 @@
+name: speckit-drift
+
+# Periodic + change-triggered check that the vendored speckit-* skills under
+# speckit/ still match their pinned SpecKit manifest — i.e. nobody hand-edited
+# a skill instead of regenerating via scripts/update-speckit-skills.*.
+# See speckit/README.md and docs/MOUNTS.md.
+
+on:
+  push:
+    paths:
+      - 'speckit/**'
+      - 'scripts/check-speckit-drift.sh'
+      - '.github/workflows/speckit-drift.yml'
+  pull_request:
+    paths:
+      - 'speckit/**'
+      - 'scripts/check-speckit-drift.sh'
+      - '.github/workflows/speckit-drift.yml'
+  schedule:
+    # Weekly, Mondays 06:00 UTC — catches out-of-band edits to committed files.
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv (provides uvx)
+        uses: astral-sh/setup-uv@v5
+
+      - name: Check vendored SpecKit skills for drift
+        run: bash scripts/check-speckit-drift.sh

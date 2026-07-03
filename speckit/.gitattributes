@@ -1,0 +1,7 @@
+# The vendored SpecKit tree is hashed by .specify/integrations/*.manifest.json
+# (SHA-256 of each managed file, as written by SpecKit's installer with LF line
+# endings). The drift check (scripts/check-speckit-drift.*) re-hashes the
+# WORKING-TREE files, so line endings must survive checkout unchanged on every
+# platform — otherwise a Windows clone with core.autocrlf=true would rewrite
+# LF->CRLF and report false drift. Force LF for everything under speckit/.
+* text eol=lf

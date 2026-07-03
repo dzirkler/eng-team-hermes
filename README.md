@@ -21,7 +21,11 @@ docker-compose.yml     Container definition, all three mount tiers
 .env.example            Copy to .env, fill in project name / repo path / API key
 bootstrap.sh             Idempotent provisioning: profile, board, worker profiles
 config/config.yaml       Model, kanban, skills, hooks, dashboard, MCP config
-skills/                  14 skills ported from D:\code\eng-team-plugin\skills\
+skills/                  Hand-authored skills ported from D:\code\eng-team-plugin\skills\
+speckit/                 Vendored, version-pinned SpecKit speckit-* skills (generated,
+                           committed, RO-mounted) — see speckit/README.md
+scripts/                 update-speckit-skills.* (regenerate the pinned SpecKit skills)
+                           and check-speckit-drift.* (fail on hand-edits)
 profiles/                8 worker profiles (orchestrator + 7 specialists):
                            profile.yaml (toolset allow-list) + instructions.md (persona)
 hooks/                   Two pre_tool_call guardrail hooks (no_merge_guard,

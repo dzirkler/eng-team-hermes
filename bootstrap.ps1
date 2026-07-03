@@ -10,6 +10,12 @@
 # being put in this script. Safe to re-run: every step is create-if-missing
 # or overwrite-with-template, never destructive.
 #
+# NOTE: this script performs NO SpecKit install, upgrade, or network fetch of
+# skill content — by design. The speckit-* skills are vendored under speckit\
+# at a pinned version and bind-mounted read-only (see docker-compose.yml,
+# speckit\README.md). Regenerating them is a deliberate repo-level, committed
+# operation via scripts\update-speckit-skills.*, never a container-start step.
+#
 # What changed from the previous (unverified) version:
 #   - No such command as `hermes kanban worker-profile apply` — a Kanban
 #     "worker" IS a real Hermes profile (`hermes profile create <name>`),

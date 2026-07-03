@@ -60,8 +60,16 @@ skills:
   # (see docker-compose.yml). Agent-authored skills land in the writable
   # Tier-2 default skills dir instead, kept structurally separate from the
   # curated baseline.
+  #
+  # /opt/speckit-skills — the version-pinned, SpecKit-generated speckit-*
+  # skills, vendored under speckit/ and mounted read-only (see
+  # docker-compose.yml + speckit/README.md). Kept in a SEPARATE external dir
+  # (not co-mingled into /opt/curated-skills) so the generated baseline stays
+  # visibly distinct from hand-authored skills and can be regenerated wholesale
+  # by scripts/update-speckit-skills.* without touching curated content.
   external_dirs:
     - /opt/curated-skills
+    - /opt/speckit-skills
   write_approval: true
 
 mcp_servers:
