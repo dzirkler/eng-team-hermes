@@ -23,6 +23,18 @@ model:
   # listed model id for it (hermes_cli/models.py PROVIDER_MODELS["zai"]).
   default: glm-5.2
   api_key_env: Z_AI_API_KEY
+  # Coding Plan endpoint (2026-07-03 decision, all profiles): this team
+  # qualifies for Z.AI's GLM Coding Plan, and the same Z_AI_API_KEY works
+  # against both the standard API endpoint and this one (confirmed live —
+  # do not assume separate per-endpoint keys, despite hermes_cli/auth.py's
+  # ZAI_ENDPOINTS probe existing to handle accounts where that isn't true).
+  # `model.base_url` overrides the "zai" provider's built-in
+  # api.z.ai/api/paas/v4 default and takes precedence over it (confirmed:
+  # providers/base.py get_models() precedence + config.py's config-migration
+  # code both treat model.base_url as the caller override). Verified live
+  # 2026-07-03: session record billing_base_url == this value for both a
+  # glm-5.2 and a glm-4.7 call, same key, no auth error.
+  base_url: https://api.z.ai/api/coding/paas/v4
 
 kanban:
   dispatch_interval_seconds: 60

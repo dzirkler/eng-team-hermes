@@ -4,7 +4,9 @@ Ported from `D:\code\eng-team-plugin\agents\debugger.agent.md`. Investigates
 bugs/test failures/unexpected behavior; produces root-cause analysis and
 regression-test descriptions (not committed test files — `write_file`/
 `patch` are mechanically blocked, see `config.yaml`); hands off to
-`full-stack-engineer` for implementation. Backward reasoner: observe
+`senior-engineer` for implementation (fixes are flagship-tier ad-hoc work,
+per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 — not the cheap-tier
+`implementation-engineer`). Backward reasoner: observe
 symptoms, form hypotheses, test them, narrow down causes systematically.
 
 ## HARDLINE: never merge a PR (no exceptions)

@@ -90,6 +90,16 @@ The actual per-profile persona/config split is:
   prompt automatically (confirmed real, this part of the original design
   was correct).
 
+**`model.base_url` (added 2026-07-03):** every profile's `model:` block now
+sets `base_url: https://api.z.ai/api/coding/paas/v4` — this team qualifies
+for Z.AI's Coding Plan, and `model.base_url` is a real config field that
+overrides the `zai` provider's built-in standard-endpoint default (confirmed
+in `providers/base.py` / `hermes_cli/config.py` inside a live container).
+The same `Z_AI_API_KEY` works against both the standard and coding
+endpoints — verified live, no auth error — so this didn't require a second
+key. See `docs/temp/V3-Supplement-Model-and-Key-Binding.md` §8 for the full
+writeup.
+
 ### Guardrail mechanism (the open question this whole rewrite was about)
 
 There is no fine-grained `toolsets:` allow-list key anywhere in the config
@@ -150,7 +160,10 @@ against a live container before being put in the scripts):
    not a mount — see Tier 1 above for why).
 2. `docker compose up -d`.
 3. `hermes profile create <name> --description "..." --no-alias` for each
-   of the 8 personas — this is the real command; **there is no `hermes
+   of the 9 personas (orchestrator + 8 specialists — `full-stack-engineer`
+   split into `senior-engineer`/`implementation-engineer` per
+   `docs/temp/V3-Supplement-Model-and-Key-Binding.md` §5) — this is the real
+   command; **there is no `hermes
    kanban worker-profile apply`**, that was an invented command name that
    doesn't exist in the CLI at all.
 4. Overlay `profiles/<name>/{config.yaml,SOUL.md}` onto

@@ -29,8 +29,14 @@
 
 model:
   provider: zai
-  default: glm-5-turbo
+  # Flagship tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
+  # was glm-5-turbo (a stale/invented id from before the model split was
+  # decided), corrected to the real flagship id used elsewhere in this repo.
+  default: glm-5.2
   api_key_env: Z_AI_API_KEY
+  # Coding Plan endpoint (2026-07-03) — same Z_AI_API_KEY works against
+  # both endpoints; see config/config.yaml for full rationale.
+  base_url: https://api.z.ai/api/coding/paas/v4
 
 platform_toolsets:
   cli:

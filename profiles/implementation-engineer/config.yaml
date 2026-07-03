@@ -1,15 +1,16 @@
-# Quality Engineer worker profile config.yaml — see
+# Implementation Engineer worker profile config.yaml — see
 # profiles/orchestrator/config.yaml for the full explanation of
-# platform_toolsets vs. hooks. Intended scope is test-files-only, but
-# Hermes's file toolset has no path-glob scoping — this is a real,
-# unenforced gap (same shape as V2's), documented in SOUL.md rather than
-# silently assumed away.
+# platform_toolsets vs. hooks. Split off from the former
+# `full-stack-engineer` profile per docs/temp/V3-Supplement-Model-and-Key-Binding.md
+# §3/§5: this profile handles well-defined Implement-phase tasks only
+# (scope already broken down by senior-engineer's Plan/Tasks work) —
+# cheap-tier GLM-4.7. Ad-hoc troubleshooting, fixes, and review stay on
+# `senior-engineer`. Same full read/write/terminal access as the old
+# full-stack-engineer — no write-blocking hook here, only the team-wide
+# no_merge_guard.js.
 
 model:
   provider: zai
-  # Cheap tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
-  # was glm-5.2 (flagship), corrected: test-writing/running tasks are
-  # well-scoped and fit comfortably in GLM-4.7's 200K.
   default: glm-4.7
   api_key_env: Z_AI_API_KEY
   # Coding Plan endpoint (2026-07-03) — same Z_AI_API_KEY works against

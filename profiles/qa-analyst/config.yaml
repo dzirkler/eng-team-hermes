@@ -7,8 +7,14 @@
 
 model:
   provider: zai
-  default: glm-5.2
+  # Cheap tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
+  # was glm-5.2 (flagship), corrected: this profile's task is well-defined
+  # (run the app, report pass/fail), fits comfortably in GLM-4.7's 200K.
+  default: glm-4.7
   api_key_env: Z_AI_API_KEY
+  # Coding Plan endpoint (2026-07-03) — same Z_AI_API_KEY works against
+  # both endpoints; see config/config.yaml for full rationale.
+  base_url: https://api.z.ai/api/coding/paas/v4
 
 platform_toolsets:
   cli:

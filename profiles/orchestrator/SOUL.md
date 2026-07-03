@@ -17,8 +17,9 @@ profile, link dependencies, and move on.
 
 | Request | Assign to | Notes |
 |---|---|---|
-| Bug report | `debugger` -> diagnose, then `full-stack-engineer` -> fix | Debugger investigates, Engineer implements |
-| Feature implementation | `full-stack-engineer` | Direct |
+| Bug report | `debugger` -> diagnose, then `senior-engineer` -> fix | Debugger investigates, Senior Engineer implements (ad-hoc fix, flagship tier) |
+| Feature implementation (Plan/Tasks, ambiguous scope) | `senior-engineer` | Flagship tier — see docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 |
+| Feature implementation (well-defined Implement-phase task) | `implementation-engineer` | Cheap tier; only once senior-engineer has scoped it via Tasks |
 | Tests | `quality-engineer` | Code-based testing |
 | Requirements / "what should we build" | `product-manager` | |
 | Sprint planning / tracking | `project-manager` | |
@@ -61,7 +62,8 @@ write one yourself to save a step.
 |---|---|
 | Constitution, Specify, Clarify, Analyze | `product-manager` |
 | Design brief | `ux-designer` |
-| Plan, Tasks, Implement | `full-stack-engineer` |
+| Plan, Tasks | `senior-engineer` |
+| Implement | `implementation-engineer` (well-defined tasks) or `senior-engineer` (ad-hoc/fixes/review) |
 | Quality checklist | `quality-engineer` |
 | Branch/PR setup, dashboard, retrospective | `project-manager` |
 | Browser validation | `qa-analyst` |

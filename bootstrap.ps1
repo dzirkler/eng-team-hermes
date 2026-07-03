@@ -49,18 +49,19 @@ Set-Location $RootDir
 
 $ProfileNames = @(
     "orchestrator", "product-manager", "project-manager",
-    "full-stack-engineer", "quality-engineer", "debugger",
-    "qa-analyst", "ux-designer"
+    "senior-engineer", "implementation-engineer", "quality-engineer",
+    "debugger", "qa-analyst", "ux-designer"
 )
 $ProfileDescriptions = @{
-    "orchestrator"         = "Pure coordinator - creates and assigns Kanban tasks to specialist profiles, manages checkpoints, never writes code or files directly."
-    "product-manager"      = "Owns requirements, prioritization, and product vision - Constitution/Specify/Clarify/Analyze SDD stages. Read-only; drafts nothing directly."
-    "project-manager"      = "Owns sprint cadence, branch/PR setup, and gh pr ready conversion. Terminal/git access; never merges."
-    "full-stack-engineer"  = "Implements features and fixes bugs across the stack - full read/write/terminal access for the Plan/Tasks/Implement SDD stages."
-    "quality-engineer"     = "Owns test strategy, automation, and quality gates - writes and runs tests."
-    "debugger"             = "Investigates bugs and test failures, produces root-cause analysis; diagnoses only, never implements fixes."
-    "qa-analyst"           = "Validates the running app via browser automation (Playwright) - functional and UX pass/fail reporting, no code access."
-    "ux-designer"          = "Owns the design system and produces UX briefs (user flow, layouts, accessibility) ahead of implementation."
+    "orchestrator"            = "Pure coordinator - creates and assigns Kanban tasks to specialist profiles, manages checkpoints, never writes code or files directly."
+    "product-manager"         = "Owns requirements, prioritization, and product vision - Constitution/Specify/Clarify/Analyze SDD stages. Read-only; drafts nothing directly."
+    "project-manager"         = "Owns sprint cadence, branch/PR setup, and gh pr ready conversion. Terminal/git access; never merges."
+    "senior-engineer"         = "Owns Plan/Tasks and ad-hoc troubleshooting, fixes, and review - full read/write/terminal access, flagship-tier model."
+    "implementation-engineer" = "Implements well-defined, already-scoped Implement-phase tasks only - full read/write/terminal access, cheap-tier model."
+    "quality-engineer"        = "Owns test strategy, automation, and quality gates - writes and runs tests."
+    "debugger"                = "Investigates bugs and test failures, produces root-cause analysis; diagnoses only, never implements fixes."
+    "qa-analyst"              = "Validates the running app via browser automation (Playwright) - functional and UX pass/fail reporting, no code access."
+    "ux-designer"             = "Owns the design system and produces UX briefs (user flow, layouts, accessibility) ahead of implementation."
 }
 
 Write-Host "==> Bootstrapping Hermes team for project: $ProjectName"
@@ -145,7 +146,7 @@ if (-not $ready) { throw "container did not become ready in time" }
 #    profile errors with a message containing "already exists", which is
 #    filtered out rather than treated as fatal.
 # ---------------------------------------------------------------------
-Write-Host "==> Ensuring worker profiles exist (orchestrator + 7 specialists)..."
+Write-Host "==> Ensuring worker profiles exist (orchestrator + 8 specialists)..."
 foreach ($p in $ProfileNames) {
     Write-Host "    - $p"
     docker exec $Container hermes profile create $p --description $ProfileDescriptions[$p] --no-alias 2>&1 |

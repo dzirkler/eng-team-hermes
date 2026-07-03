@@ -2,7 +2,7 @@
 # for the full explanation of platform_toolsets vs. hooks. Needs `terminal`
 # and `code_execution` to run existing tests / reproduce bugs, but
 # `write_file`/`patch` are mechanically blocked — this profile diagnoses,
-# it never implements the fix (hands off to full-stack-engineer). Note:
+# it never implements the fix (hands off to senior-engineer). Note:
 # terminal access alone can still mutate the filesystem via shell redirects
 # (`>`, `sed -i`, `tee`) — the hook only covers the two dedicated
 # file-mutation tool calls, not shell-based writes. Same residual gap as
@@ -11,8 +11,14 @@
 
 model:
   provider: zai
-  default: glm-5.1
+  # Flagship tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
+  # was glm-5.1 (a stale id predating the model split decision), corrected
+  # to the real flagship id used elsewhere in this repo.
+  default: glm-5.2
   api_key_env: Z_AI_API_KEY
+  # Coding Plan endpoint (2026-07-03) — same Z_AI_API_KEY works against
+  # both endpoints; see config/config.yaml for full rationale.
+  base_url: https://api.z.ai/api/coding/paas/v4
 
 platform_toolsets:
   cli:

@@ -46,15 +46,16 @@ REPO_PATH="$(cd "$REPO_PATH" && pwd)"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-PROFILE_NAMES=(orchestrator product-manager project-manager full-stack-engineer \
-               quality-engineer debugger qa-analyst ux-designer)
+PROFILE_NAMES=(orchestrator product-manager project-manager senior-engineer \
+               implementation-engineer quality-engineer debugger qa-analyst ux-designer)
 
 profile_description() {
   case "$1" in
     orchestrator) echo "Pure coordinator - creates and assigns Kanban tasks to specialist profiles, manages checkpoints, never writes code or files directly." ;;
     product-manager) echo "Owns requirements, prioritization, and product vision - Constitution/Specify/Clarify/Analyze SDD stages. Read-only; drafts nothing directly." ;;
     project-manager) echo "Owns sprint cadence, branch/PR setup, and gh pr ready conversion. Terminal/git access; never merges." ;;
-    full-stack-engineer) echo "Implements features and fixes bugs across the stack - full read/write/terminal access for the Plan/Tasks/Implement SDD stages." ;;
+    senior-engineer) echo "Owns Plan/Tasks and ad-hoc troubleshooting, fixes, and review - full read/write/terminal access, flagship-tier model." ;;
+    implementation-engineer) echo "Implements well-defined, already-scoped Implement-phase tasks only - full read/write/terminal access, cheap-tier model." ;;
     quality-engineer) echo "Owns test strategy, automation, and quality gates - writes and runs tests." ;;
     debugger) echo "Investigates bugs and test failures, produces root-cause analysis; diagnoses only, never implements fixes." ;;
     qa-analyst) echo "Validates the running app via browser automation (Playwright) - functional and UX pass/fail reporting, no code access." ;;
@@ -150,7 +151,7 @@ fi
 #    profile errors with a message containing "already exists", which is
 #    filtered out rather than treated as fatal.
 # ---------------------------------------------------------------------
-echo "==> Ensuring worker profiles exist (orchestrator + 7 specialists)..."
+echo "==> Ensuring worker profiles exist (orchestrator + 8 specialists)..."
 for p in "${PROFILE_NAMES[@]}"; do
   echo "    - $p"
   docker exec "$CONTAINER" hermes profile create "$p" \
