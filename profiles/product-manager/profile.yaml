@@ -1,0 +1,11 @@
+name: product-manager
+model: glm-5.2
+toolsets:
+  - read
+  - search
+  - webfetch
+  - memory
+  - kanban_comment
+# No edit/write/bash — PM owns gates and requirements artifacts, generated
+# via speckit-equivalent sub-delegation, never written directly. No
+# kanban_block — escalates to orchestrator via kanban_comment only.

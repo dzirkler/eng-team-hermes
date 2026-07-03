@@ -1,0 +1,55 @@
+services:
+  hermes-agent:
+    image: ghcr.io/nousresearch/hermes-agent:${HERMES_IMAGE_TAG:-latest}
+    container_name: ${PROJECT_NAME:-eng-team}-hermes
+    restart: unless-stopped
+
+    ports:
+      # Gateway (CLI is primary interface for the trial; gateway port still
+      # exposed for later chat-platform integration, loopback-only for now)
+      - "127.0.0.1:8642:8642"
+      # Kanban dashboard — read-only visibility, loopback-only, no auth
+      # infra required at this binding (do NOT change to 0.0.0.0 without
+      # adding an auth layer in front — see docs/MOUNTS.md).
+      - "127.0.0.1:9119:9119"
+
+    environment:
+      - HERMES_PROFILE=${PROJECT_NAME:-eng-team}
+      - Z_AI_API_KEY=${Z_AI_API_KEY}
+      - HERMES_KANBAN_BOARD=${PROJECT_NAME:-eng-team}
+
+    volumes:
+      # ---------------------------------------------------------------
+      # TIER 1 — read-only, host-versioned, curated assets.
+      # Everything here is authored on the host, committed to this repo,
+      # and mounted read-only so neither the agent nor the self-improving
+      # skill loop can silently mutate the baseline. Edit on host, commit,
+      # restart the container to pick up changes.
+      # ---------------------------------------------------------------
+      - ./skills:/home/node/.hermes/skills/curated:ro
+      - ./profiles:/home/node/.hermes/profiles-src:ro
+      - ./hooks:/home/node/.hermes/hooks:ro
+      - ./config/config.yaml:/home/node/.hermes/config.yaml:ro
+
+      # ---------------------------------------------------------------
+      # TIER 2 — writable, host-backed state. Survives a container
+      # recycle (docker compose up/down without -v). Only wiped
+      # deliberately with `docker compose down -v` (see task: verify
+      # teardown/recreate cycle — that test wipes ONLY this tier).
+      # ---------------------------------------------------------------
+      - ./state/kanban:/home/node/.hermes/kanban
+      - ./state/memory:/home/node/.hermes/memory
+      - ./state/learned-skills:/home/node/.hermes/skills/learned
+      - ./state/credentials:/home/node/.hermes/credentials
+      - ./state/logs:/home/node/.hermes/logs
+
+      # ---------------------------------------------------------------
+      # TIER 3 — target project source. Read/write bind mount + git
+      # worktree isolation per task (see docs/MOUNTS.md, "source access"
+      # decision). Set PROJECT_REPO_PATH in .env.
+      # ---------------------------------------------------------------
+      - ${PROJECT_REPO_PATH}:/workspace/${PROJECT_NAME:-project}
+
+    working_dir: /home/node
+    stdin_open: true
+    tty: true

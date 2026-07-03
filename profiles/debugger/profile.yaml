@@ -1,0 +1,11 @@
+name: debugger
+model: glm-5.1
+toolsets:
+  - read
+  - search
+  - bash    # read-only diagnostics (running existing tests, reading logs) —
+            # NOT a license to modify files; enforced by the absence of
+            # edit/write below, matching V2's hard stop
+  - kanban_comment
+# Deliberately no edit/write — matches V2's "does NOT implement fixes" rule,
+# now structural rather than prose. No kanban_block.

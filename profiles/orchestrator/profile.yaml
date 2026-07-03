@@ -1,0 +1,35 @@
+# Orchestrator worker profile — toolset allow-list.
+#
+# This is the enforcement upgrade over V2's no-op-guard.js: that hook was
+# best-effort (relied on a persona self-reporting via env var, fell back to
+# allow on uncertainty). Here, edit/write/bash are simply absent from the
+# toolset — not enforceable-by-guessing, enforceable-by-construction. The
+# orchestrator_no_edit_guard.js hook is a second layer on top of this, not
+# a substitute for it.
+name: orchestrator
+model: glm-5-turbo   # matches V2 orchestrator.agent.md model assignment
+
+toolsets:
+  - read
+  - search
+  - github_read_only     # fetch issue/PR details for delegation context only
+  - webfetch
+  - memory
+  - kanban_create
+  - kanban_assign
+  - kanban_link
+  - kanban_comment
+  - kanban_block         # ONLY this profile gets kanban_block — see §3 of
+                          # the migration plan / docs/MOUNTS.md. Specialist
+                          # profiles below do not have this tool.
+
+# Explicitly absent (not "discouraged" — not present at all):
+#   edit, write, bash, github_mutate, kanban_block (on specialist profiles)
+
+notifications:
+  # Only the orchestrator's own top-level task is subscribed. Child
+  # specialist tasks are never subscribed — see docs/MOUNTS.md and migration
+  # plan §3. This is what makes "single point of contact" true: Damon never
+  # gets a notification from a specialist task directly, only from the 3
+  # checkpoints the orchestrator itself blocks on.
+  scope: top_level_task_only

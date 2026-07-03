@@ -1,0 +1,75 @@
+# Hermes Agent config.yaml — versioned source of truth for this project's
+# team. Mounted read-only into the container (see docker-compose.yml).
+# Runtime `hermes config` mutations will NOT persist across a restart by
+# design — edit this file on the host and restart to change behavior.
+# This is deliberate: it keeps the running team's config identical to what's
+# committed to git (see docs/MOUNTS.md "why read-only" rationale).
+
+profile: ${PROJECT_NAME}
+
+model:
+  provider: zai
+  # Match D:\code\eng-team-plugin per-agent model assignments (V2 parity —
+  # see profiles/*/profile.yaml for per-worker-profile overrides).
+  default: glm-5.2
+  api_key_env: Z_AI_API_KEY
+
+kanban:
+  board: ${PROJECT_NAME}
+  dispatch_interval_seconds: 60
+  # Default task workspace inside the Tier-3 project mount. Individual
+  # tasks override with worktree:/workspace/${PROJECT_NAME}/.worktrees/<task-id>
+  # for per-task isolation — see docs/MOUNTS.md.
+  default_workspace: "dir:/workspace/${PROJECT_NAME}"
+
+skills:
+  # Curated (Tier 1, read-only, human-authored) skills live here — ported
+  # 1:1 from D:\code\eng-team-plugin\skills\.
+  external_dirs:
+    - /home/node/.hermes/skills/curated
+  # Agent-authored skills (skill_manage output) land in the writable Tier-2
+  # "learned" dir by default, NOT in external_dirs — kept structurally
+  # separate from the curated baseline so the self-improving loop can never
+  # silently rewrite what's versioned in git. See profiles/README.md for
+  # which profiles have write_approval enabled and when.
+  write_approval: true
+
+mcp_servers:
+  # Reformatted 1:1 from D:\code\eng-team-plugin\.mcp.json. One substantive
+  # change: the API key there was hardcoded in plaintext and committed to
+  # git (flagged 2026-07-02, still unrotated as of this port) — here it's
+  # interpolated from the Z_AI_API_KEY env var (set via .env / docker-compose,
+  # never written to this file). Rotate the old key; don't reuse it below.
+  zai-vision:
+    command: npx
+    args: ["-y", "@z_ai/mcp-server@latest"]
+    env:
+      Z_AI_API_KEY: ${Z_AI_API_KEY}
+      Z_AI_MODE: ZAI
+  zai-web-search:
+    type: remote
+    url: https://api.z.ai/api/mcp/web_search_prime/mcp
+    headers:
+      Authorization: "Bearer ${Z_AI_API_KEY}"
+  playwright:
+    command: npx
+    args: ["-y", "@playwright/mcp@latest"]
+
+hooks:
+  pre_tool_call:
+    - /home/node/.hermes/hooks/no_merge_guard.js
+    - /home/node/.hermes/hooks/orchestrator_no_edit_guard.js
+
+dashboard:
+  bind: 127.0.0.1
+  port: 9119
+  # Loopback-only — no basic-auth env vars needed at this binding. If this
+  # ever needs to be reachable off-host, add HERMES_DASHBOARD_BASIC_AUTH_*
+  # env vars AND a reverse proxy first (mandatory since the June 2026
+  # unauthenticated-dashboard incident) — do not just rebind to 0.0.0.0.
+
+gateway:
+  # Disabled for the trial — CLI (docker exec) is the primary interface.
+  # Flip this on later to add a chat-platform front end without touching
+  # anything else in this file.
+  enabled: false

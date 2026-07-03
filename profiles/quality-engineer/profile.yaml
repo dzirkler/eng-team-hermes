@@ -1,0 +1,12 @@
+name: quality-engineer
+model: glm-5.2
+toolsets:
+  - read
+  - edit    # intended scope: test files only. Hermes toolsets may not
+            # support path-glob scoping (residual gap flagged in migration
+            # plan §10) — verify during task #6 execution; if unscoped,
+            # this is currently a coarser grant than V2's convention and
+            # should be noted, not silently accepted.
+  - bash
+  - kanban_comment
+# No kanban_block — escalates to orchestrator via kanban_comment only.
