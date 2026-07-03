@@ -1,0 +1,35 @@
+# QA Analyst worker profile config.yaml — see profiles/orchestrator/config.yaml
+# for the full explanation of platform_toolsets vs. hooks. This profile
+# doesn't need the `file` toolset at all — it validates through the browser
+# (Playwright MCP) and reports via kanban_comment, never reads source
+# directly. Full toolset deny (not just a hook) is achievable here, cleaner
+# than the read-only-via-hook pattern used elsewhere.
+
+model:
+  provider: zai
+  default: glm-5.2
+  api_key_env: Z_AI_API_KEY
+
+platform_toolsets:
+  cli:
+    - kanban
+    - memory
+    - skills
+    - todo
+    - session_search
+    - browser
+
+mcp_servers:
+  playwright:
+    command: npx
+    args: ["-y", "@playwright/mcp@latest"]
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10

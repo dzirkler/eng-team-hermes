@@ -1,9 +1,0 @@
-name: qa-analyst
-model: glm-5.2
-toolsets:
-  - read
-  - mcp_playwright   # browser-based validation — via the playwright MCP
-                      # server (config.yaml mcp_servers.playwright)
-  - kanban_comment
-# Deliberately no edit/write — QA Analyst validates and reports, never
-# fixes. No kanban_block.

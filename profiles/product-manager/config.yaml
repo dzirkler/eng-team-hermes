@@ -1,0 +1,35 @@
+# Product Manager worker profile config.yaml — see profiles/orchestrator/config.yaml
+# for the full explanation of platform_toolsets vs. hooks. This profile
+# reads context (file toolset, read-only via no_write_guard.js) and
+# researches (web toolset) but never edits files or runs shell commands —
+# requirements/spec artifacts are dispatched to product-manager, not
+# written by it directly (SDD generation is sub-delegated, reviewed, and
+# presented at a checkpoint by the orchestrator).
+
+model:
+  provider: zai
+  default: glm-5.2
+  api_key_env: Z_AI_API_KEY
+
+platform_toolsets:
+  cli:
+    - kanban
+    - file
+    - memory
+    - web
+    - skills
+    - todo
+    - session_search
+    - clarify
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10
+    - command: /opt/hooks/no_write_guard.js
+      timeout: 10

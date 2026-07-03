@@ -1,0 +1,57 @@
+# Orchestrator worker profile config.yaml — seeded by bootstrap.ps1/.sh into
+# /opt/data/profiles/orchestrator/config.yaml inside the container (real
+# per-profile config path, confirmed 2026-07-02 against a live container:
+# `hermes profile create` produces <data-root>/profiles/<name>/{SOUL.md,
+# profile.yaml, config.yaml?}. profile.yaml there is NOT this file — it's a
+# separate, auto-generated {description, description_auto} metadata file
+# used by the kanban decomposer, set via `hermes profile describe`, never
+# hand-authored here).
+#
+# Guardrail design (confirmed against hermes_cli/config.py + tools/*.py
+# source, not docs): there is no fine-grained "toolsets:" allow-list key.
+# Two real, complementary mechanisms compose into "orchestrator never
+# writes code":
+#   1. platform_toolsets.cli below — a literal list of enabled TOOLSET
+#      names (confirmed by round-tripping `hermes tools disable X --platform
+#      cli` against a live profile's config.yaml). Coarse: a whole toolset
+#      is on or off, no sub-tool split. "file" is one toolset covering
+#      read_file/write_file/patch/search_files together, so it must stay
+#      enabled here (orchestrator needs read_file/search_files for
+#      delegation context) rather than removed.
+#   2. hooks.pre_tool_call below — matches on the real per-tool names
+#      within an enabled toolset. no_write_guard.js blocks write_file/patch
+#      specifically, leaving read_file/search_files usable. This is the
+#      only mechanism fine-grained enough for "read yes, write no."
+#
+# terminal and code_execution are omitted from platform_toolsets.cli
+# entirely — the orchestrator coordinates via Kanban tool calls, not shell
+# commands, so there's no legitimate use case to leave a hole for.
+
+model:
+  provider: zai
+  default: glm-5-turbo
+  api_key_env: Z_AI_API_KEY
+
+platform_toolsets:
+  cli:
+    - kanban
+    - file
+    - memory
+    - web
+    - skills
+    - todo
+    - session_search
+    - clarify
+    - delegation
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10
+    - command: /opt/hooks/no_write_guard.js
+      timeout: 10

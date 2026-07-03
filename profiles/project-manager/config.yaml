@@ -1,0 +1,35 @@
+# Project Manager worker profile config.yaml — see profiles/orchestrator/config.yaml
+# for the full explanation of platform_toolsets vs. hooks. This profile
+# needs `terminal` for git/gh operations (branch setup, draft PR, `gh pr
+# ready`) — there is no narrower "git-only" toolset in the schema, so shell
+# access is broader than strictly necessary in practice; `no_merge_guard.js`
+# enforces the one boundary that actually matters (no merge/close), and the
+# rest is prose discipline in SOUL.md, same residual gap V2 had.
+
+model:
+  provider: zai
+  default: glm-4.7
+  api_key_env: Z_AI_API_KEY
+
+platform_toolsets:
+  cli:
+    - kanban
+    - file
+    - memory
+    - web
+    - skills
+    - todo
+    - session_search
+    - terminal
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10
+    - command: /opt/hooks/no_write_guard.js
+      timeout: 10

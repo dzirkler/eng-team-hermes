@@ -1,0 +1,28 @@
+# UX Designer worker profile config.yaml — see profiles/orchestrator/config.yaml
+# for the full explanation of platform_toolsets vs. hooks. Needs file
+# read/write for design-brief docs but no shell/code-execution access.
+
+model:
+  provider: zai
+  default: glm-5.2
+  api_key_env: Z_AI_API_KEY
+
+platform_toolsets:
+  cli:
+    - kanban
+    - file
+    - memory
+    - web
+    - skills
+    - todo
+    - session_search
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10

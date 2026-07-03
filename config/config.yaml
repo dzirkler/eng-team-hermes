@@ -1,45 +1,49 @@
-# Hermes Agent config.yaml — versioned source of truth for this project's
-# team. Mounted read-only into the container (see docker-compose.yml).
-# Runtime `hermes config` mutations will NOT persist across a restart by
-# design — edit this file on the host and restart to change behavior.
-# This is deliberate: it keeps the running team's config identical to what's
-# committed to git (see docs/MOUNTS.md "why read-only" rationale).
-
-profile: ${PROJECT_NAME}
+# Hermes Agent config.yaml — versioned source of truth for the DEFAULT
+# profile (root /opt/data, the always-on process docker-compose.yml starts
+# via `command: gateway run`). Seeded into ./state/data/config.yaml by
+# bootstrap.ps1 / bootstrap.sh before `docker compose up` — NOT a live bind
+# mount. Hermes migrates/rewrites config.yaml in place on every schema
+# version bump (confirmed: a fresh container backs up and rewrites it even
+# on first boot), which would fight a read-only bind mount. Re-run
+# bootstrap to re-sync this file into the container; a running container
+# will not pick up host edits to this file until the next bootstrap run.
+#
+# Schema confirmed 2026-07-02 by reading hermes_cli/config.py directly
+# inside a live container (docker exec ... cat /opt/hermes/hermes_cli/config.py)
+# — not from docs. Keys that looked plausible from docs but do not actually
+# exist in the schema (top-level `profile:`, `dashboard.bind`/`port`,
+# `gateway.enabled`, `kanban.board`, `kanban.default_workspace`) have been
+# removed. Board/workspace selection and per-worker profile creation are
+# CLI-imperative operations run by bootstrap.ps1/.sh, not declarative config
+# — see docs/temp/handoff-2026-07-02.md for the full resolution writeup.
 
 model:
   provider: zai
-  # Match D:\code\eng-team-plugin per-agent model assignments (V2 parity —
-  # see profiles/*/profile.yaml for per-worker-profile overrides).
+  # Confirmed real: "zai" is a canonical provider slug and "glm-5.2" is a
+  # listed model id for it (hermes_cli/models.py PROVIDER_MODELS["zai"]).
   default: glm-5.2
   api_key_env: Z_AI_API_KEY
 
 kanban:
-  board: ${PROJECT_NAME}
   dispatch_interval_seconds: 60
-  # Default task workspace inside the Tier-3 project mount. Individual
-  # tasks override with worktree:/workspace/${PROJECT_NAME}/.worktrees/<task-id>
-  # for per-task isolation — see docs/MOUNTS.md.
-  default_workspace: "dir:/workspace/${PROJECT_NAME}"
+  # Board slug + default workspace are NOT config.yaml keys — they're set
+  # imperatively via `hermes kanban boards create/switch/set-default-workdir`,
+  # which bootstrap.ps1/.sh run on every invocation (idempotent).
 
 skills:
-  # Curated (Tier 1, read-only, human-authored) skills live here — ported
-  # 1:1 from D:\code\eng-team-plugin\skills\.
+  # Curated (Tier 1, read-only, human-authored) skills — ported 1:1 from
+  # D:\code\eng-team-plugin\skills\, mounted read-only at /opt/curated-skills
+  # (see docker-compose.yml). Agent-authored skills land in the writable
+  # Tier-2 default skills dir instead, kept structurally separate from the
+  # curated baseline.
   external_dirs:
-    - /home/node/.hermes/skills/curated
-  # Agent-authored skills (skill_manage output) land in the writable Tier-2
-  # "learned" dir by default, NOT in external_dirs — kept structurally
-  # separate from the curated baseline so the self-improving loop can never
-  # silently rewrite what's versioned in git. See profiles/README.md for
-  # which profiles have write_approval enabled and when.
+    - /opt/curated-skills
   write_approval: true
 
 mcp_servers:
-  # Reformatted 1:1 from D:\code\eng-team-plugin\.mcp.json. One substantive
-  # change: the API key there was hardcoded in plaintext and committed to
-  # git (flagged 2026-07-02, still unrotated as of this port) — here it's
-  # interpolated from the Z_AI_API_KEY env var (set via .env / docker-compose,
-  # never written to this file). Rotate the old key; don't reuse it below.
+  # Reformatted 1:1 from D:\code\eng-team-plugin\.mcp.json, with the
+  # previously-hardcoded API key replaced by the Z_AI_API_KEY env var
+  # (set via .env / docker-compose, never written to this file).
   zai-vision:
     command: npx
     args: ["-y", "@z_ai/mcp-server@latest"]
@@ -56,20 +60,11 @@ mcp_servers:
     args: ["-y", "@playwright/mcp@latest"]
 
 hooks:
+  # hooks.<event> must be a list of {command, matcher?, timeout?} mappings —
+  # a bare string entry is silently dropped with a logged warning and never
+  # registers (confirmed: agent/shell_hooks.py _parse_single_entry rejects
+  # non-dict entries). The previous version of this file used bare strings
+  # and the hook never actually fired.
   pre_tool_call:
-    - /home/node/.hermes/hooks/no_merge_guard.js
-    - /home/node/.hermes/hooks/orchestrator_no_edit_guard.js
-
-dashboard:
-  bind: 127.0.0.1
-  port: 9119
-  # Loopback-only — no basic-auth env vars needed at this binding. If this
-  # ever needs to be reachable off-host, add HERMES_DASHBOARD_BASIC_AUTH_*
-  # env vars AND a reverse proxy first (mandatory since the June 2026
-  # unauthenticated-dashboard incident) — do not just rebind to 0.0.0.0.
-
-gateway:
-  # Disabled for the trial — CLI (docker exec) is the primary interface.
-  # Flip this on later to add a chat-platform front end without touching
-  # anything else in this file.
-  enabled: false
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10

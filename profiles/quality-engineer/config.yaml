@@ -1,0 +1,33 @@
+# Quality Engineer worker profile config.yaml — see
+# profiles/orchestrator/config.yaml for the full explanation of
+# platform_toolsets vs. hooks. Intended scope is test-files-only, but
+# Hermes's file toolset has no path-glob scoping — this is a real,
+# unenforced gap (same shape as V2's), documented in SOUL.md rather than
+# silently assumed away.
+
+model:
+  provider: zai
+  default: glm-5.2
+  api_key_env: Z_AI_API_KEY
+
+platform_toolsets:
+  cli:
+    - kanban
+    - file
+    - memory
+    - web
+    - skills
+    - todo
+    - session_search
+    - terminal
+    - code_execution
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10

@@ -1,19 +1,13 @@
 # Real secrets / local overrides — never commit
 .env
 
-# Tier-2 writable state (host-backed, but NOT source-controlled — this is
-# runtime state, not authored content). Kept out of git so the repo stays
-# a clean description of "how to build the team," not an accumulating dump
-# of one instance's task history and memory embeddings.
-state/kanban/
-state/memory/
-state/credentials/
-state/logs/
-
-# Learned skills ARE reviewed selectively (see docs/MOUNTS.md promotion
-# workflow) but are not committed wholesale — promote individual files by
-# hand into skills/ once approved, don't bulk-commit this directory.
-state/learned-skills/
+# Tier-2 writable state — Hermes's ENTIRE /opt/data tree (config, .env,
+# SOUL.md, sessions, memories, skills, home, cron, hooks, logs) lands here
+# as one unit; that's Hermes's real persistence contract, not the
+# subdivided kanban/memory/credentials split originally assumed. Kept out
+# of git so the repo stays a clean description of "how to build the team,"
+# not an accumulating dump of one instance's runtime state.
+state/data/
 
 # Keep the directory structure itself trackable
 !state/**/.gitkeep

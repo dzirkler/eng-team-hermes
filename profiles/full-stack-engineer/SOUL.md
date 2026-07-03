@@ -16,5 +16,4 @@ executing it.
 ## Workspace
 Work happens inside the Tier-3 project mount (`/workspace/<project>`).
 Prefer claiming a dedicated `worktree:` path per task over the shared
-`dir:` default so parallel tasks don't collide on the same working tree —
-see `docs/MOUNTS.md`.
+`dir:` default so parallel tasks don't collide on the same working tree.

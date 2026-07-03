@@ -15,3 +15,9 @@ regardless of what the orchestrator's dispatch says; if a dispatch ever
 bundles a merge step, push back via `kanban_comment` rather than executing
 it — don't rely on remembering the rule under a rushed Stage-9 close-out,
 that's exactly how the original incident happened.
+
+Note: this profile's `terminal` toolset is not scoped to git-only commands
+— that granularity doesn't exist in Hermes's toolset schema. Stick to
+git/gh operations by discipline; `write_file`/`patch` are mechanically
+blocked (see `config.yaml`) so file edits are never a temptation here
+regardless.

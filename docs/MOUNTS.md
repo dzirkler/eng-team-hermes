@@ -1,70 +1,126 @@
 # Mount / volume layout
 
-Three tiers, each with a different persistence and mutability contract.
-See `docker-compose.yml` for the concrete mount lines this document
-explains.
+Rewritten 2026-07-03 against a live container (source inspection at
+`/opt/hermes`, not docs) — the previous version of this document described
+an architecture that was never actually wired up (see
+`docs/temp/handoff-2026-07-02.md` for the full incident writeup). The
+biggest correction: **there is no per-file mount for `config/config.yaml`
+or `profiles/`.** `docker-compose.yml` bind-mounts the entire Hermes data
+root as one unit; `config/config.yaml` and `profiles/*/{config.yaml,SOUL.md}`
+are copied into that mount by `bootstrap.ps1`/`bootstrap.sh` before/after
+the container starts. Editing those source files and restarting the
+container does **nothing** — you must re-run bootstrap.
 
 ## Tier 1 — read-only, host-versioned, curated
 
 | Host path | Container path | Contents |
 |---|---|---|
-| `./skills/` | `/home/node/.hermes/skills/curated` (via `config.yaml` `skills.external_dirs`) | 14 skills ported from `D:\code\eng-team-plugin\skills\` |
-| `./profiles/` | `/home/node/.hermes/profiles-src` | Worker-profile `profile.yaml` (toolset) + `instructions.md` (persona) per profile |
-| `./hooks/` | `/home/node/.hermes/hooks` | `no_merge_guard.js`, `orchestrator_no_edit_guard.js` |
-| `./config/config.yaml` | `/home/node/.hermes/config.yaml` | Model, kanban, skills, hooks, dashboard, gateway config |
+| `./skills/` | `/opt/curated-skills` (via `config.yaml` `skills.external_dirs`) | Skills ported from `D:\code\eng-team-plugin\skills\` |
+| `./hooks/` | `/opt/hooks` | `no_merge_guard.js`, `no_write_guard.js` |
 
-**Why read-only:** two reasons, not one.
+These two are real, live, read-only bind mounts (see `docker-compose.yml`).
+Editing a file here takes effect immediately — no restart needed for hooks
+(shell scripts are re-read per invocation) or for skills (re-read per
+session).
 
-1. **Reproducibility.** Everything here is what `bootstrap.sh` (Tier 0,
-   below) provisions from — if it were writable, the running container's
-   actual behavior could drift from what's committed to git, and the
-   "torn down and recreated" property Damon asked for would stop being
-   true (you'd be recreating from a stale snapshot, not the real source).
-2. **Guardrail integrity.** The two hook scripts are the mechanical
-   enforcement layer (§4 of the migration plan). If they lived somewhere
-   the agent could write to, the self-improving skill loop — or a
-   sufficiently confused model — could edit its own guardrails. Read-only
-   makes that structurally impossible, not just discouraged.
+`./profiles/` and `./config/config.yaml` are **not** mounted at all. They
+are copy-in sources for bootstrap — see Tier 0 below.
 
-**Change process:** edit on host, `git commit`, restart the container
-(`docker compose up -d` picks up mount content changes on restart; it does
-not hot-reload while running).
+**Why hooks are a real read-only mount but config.yaml isn't:** hooks must
+never be writable by the agent (guardrail integrity — if the enforcement
+scripts lived somewhere the agent could edit, a confused model or the
+self-improving skill loop could edit its own guardrails). config.yaml can't
+be a read-only mount because Hermes rewrites it in place on every schema
+version bump (confirmed: a fresh container backs up and migrates
+config.yaml even on first boot, `0 -> 33` in one observed run) — a
+read-only bind would make that write fail. Bootstrap re-syncing it from the
+host on every run is what keeps it from drifting instead.
 
 ## Tier 2 — writable, host-backed, survives recycle
 
 | Host path | Container path | Contents |
 |---|---|---|
-| `./state/kanban/` | `/home/node/.hermes/kanban` | SQLite board DB, task workspaces |
-| `./state/memory/` | `/home/node/.hermes/memory` | Worker-profile persistent memory / embeddings |
-| `./state/learned-skills/` | `/home/node/.hermes/skills/learned` | `skill_manage` output — separate from curated, see promotion workflow below |
-| `./state/credentials/` | `/home/node/.hermes/credentials` | Platform integration credentials, if/when gateway is enabled |
-| `./state/logs/` | `/home/node/.hermes/logs` | Runtime logs |
+| `./state/data/` | `/opt/data` | The **entire** Hermes data root for the container's own gateway/dispatcher process: config.yaml, `.env`, SOUL.md, sessions, memories, `profiles/<name>/` (each with its own config.yaml, SOUL.md, skills, sessions, etc.), kanban boards/DBs, logs, cron. |
 
-**Why writable + host-backed (not a Docker-internal named volume):** host-
-backed means Damon can inspect, back up, or `git diff` the learned-skills
-directory directly, without going through `docker exec`. Not committed to
-git wholesale (see `.gitignore`) — this is runtime state, not authored
-content, and a repo that accumulates one instance's task history isn't a
-clean "how to build the team" description anymore.
+This replaced an earlier three-way split (`state/kanban/`, `state/memory/`,
+`state/learned-skills/`, `state/credentials/`, `state/logs/`) that assumed
+Hermes exposed a granular per-subpath mount contract. It doesn't — `/opt/data`
+is one persistence unit, confirmed by reading `hermes_cli/profiles.py` and
+watching what a fresh container actually writes there. Those five
+subdirectories under `state/` were dead leftovers from that abandoned
+design and have been deleted.
 
 **Persistence contract:** survives `docker compose restart` / `up` / `down`
-(without `-v`). Only wiped by `docker compose down -v` — which is exactly
-what the Phase-0 teardown/recreate test (task #21) deliberately does, to
-prove `bootstrap.sh` can rebuild working state from nothing. Day-to-day
-operation should never need `-v`.
+(without `-v`). Only wiped by deleting `./state/data/` directly or
+`docker compose down -v`.
 
-### Skill promotion workflow
+**Ownership note:** the container's `stage2-hook.sh` init script chowns
+`/opt/data` to the `hermes` user on every boot, but only for paths it
+already knows about. Files bootstrap writes into an already-running
+container (i.e. anything after step 3, once profiles have been created)
+land with whatever UID the host bind-mount presents — on Windows via Docker
+Desktop this is not reliably the container's `hermes` UID. Bootstrap fixes
+this explicitly with `docker exec ... chown hermes:hermes` after every
+config/SOUL.md sync; don't skip that step if you're hand-editing the
+bootstrap scripts.
 
-`skill_manage` (with `write_approval: true`, set for `orchestrator` and
-`quality-engineer` in `config.yaml`) writes to `state/learned-skills/`, not
-`skills/`. To review: `hermes skills pending` / `hermes skills diff <id>`
-inside the container. To promote something worth keeping into the
-permanent, versioned baseline: copy the file from
-`state/learned-skills/<name>/SKILL.md` into `skills/<name>/SKILL.md` on the
-host and commit it. That's the entire mechanism — there is no automatic
-promotion, on purpose, so nothing crosses from "agent-authored, unreviewed"
-to "curated, shared baseline" without a human copy-and-commit in the
-middle.
+### Per-profile config vs. the real `profile.yaml`
+
+Each Hermes profile (`hermes profile create <name>`) gets its own directory
+at `/opt/data/profiles/<name>/` with **no inheritance from the root
+profile's config.yaml** — confirmed by reading `hermes_cli/config.py`'s
+`load_config()`, which resolves purely from `HERMES_HOME` (the profile's
+own directory) with no parent-profile fallback. Anything a profile needs
+(model, `platform_toolsets`, `hooks.pre_tool_call`, `mcp_servers`,
+`skills.external_dirs`) must be declared in **that profile's own**
+config.yaml, not just the root one.
+
+`profile.yaml` is a real file Hermes creates automatically inside each
+profile directory — but it is NOT what this repo's old `profiles/*/profile.yaml`
+assumed. Its only real content is `{description, description_auto}`,
+written by `hermes profile create --description "..."` or `hermes profile
+describe`, and read by the Kanban decomposer to route triage tasks to the
+right specialist by role. It is never hand-authored in this repo; bootstrap
+sets it via `--description` at profile-create time.
+
+The actual per-profile persona/config split is:
+- `profiles/<name>/config.yaml` — real Hermes config schema subset
+  (`platform_toolsets`, `hooks`, `model`, `mcp_servers`, `skills`).
+- `profiles/<name>/SOUL.md` — persona prose, injected into the system
+  prompt automatically (confirmed real, this part of the original design
+  was correct).
+
+### Guardrail mechanism (the open question this whole rewrite was about)
+
+There is no fine-grained `toolsets:` allow-list key anywhere in the config
+schema. Two real, complementary mechanisms compose instead:
+
+1. **`platform_toolsets.<platform>`** (e.g. `platform_toolsets.cli`) — a
+   literal list of enabled toolset names, confirmed by round-tripping
+   `hermes tools disable file --platform cli` against a live profile and
+   watching it rewrite this exact key in that profile's config.yaml. Coarse:
+   a whole toolset (`file`, `terminal`, `kanban`, `web`, ...) is on or off,
+   with no sub-tool split.
+2. **`hooks.pre_tool_call`** — shell hooks matching on the real per-tool
+   names *within* an enabled toolset (e.g. `write_file`/`patch` within the
+   `file` toolset; `kanban_block` within the `kanban` toolset). This is the
+   only mechanism fine-grained enough for "read yes, write no" — toolset
+   disable is all-or-nothing.
+
+`hooks.<event>` entries must be `{command, matcher?, timeout?}` mappings —
+a bare string is silently dropped with a logged warning and the hook never
+registers. (The previous version of `config/config.yaml` used bare
+strings; this was a real, previously-undiscovered bug, not just a stylistic
+choice — the hooks had never actually fired.)
+
+Both mechanisms were negative-tested for real on 2026-07-03: a live
+`hermes -z` run against the `orchestrator` profile attempting `write_file`
+was blocked with the hook's message and no file was created; the same
+attempt against `full-stack-engineer` succeeded. `gh pr merge` / `gh pr
+ready` were tested the same way via `hermes hooks test --payload-file`
+(note: that CLI's payload-file JSON uses the key `args` for the tool input
+dict, not `tool_input` — an internal naming quirk in `hermes_cli/hooks.py`,
+unrelated to the real wire format hooks receive on stdin).
 
 ## Tier 3 — target project source
 
@@ -72,33 +128,41 @@ middle.
 |---|---|
 | `$PROJECT_REPO_PATH` (from `.env`) | `/workspace/$PROJECT_NAME` |
 
-Read/write bind mount of the actual codebase the team works on. Kanban task
-workspaces default to `dir:/workspace/$PROJECT_NAME` (the shared checkout)
-but individual tasks should claim `worktree:/workspace/$PROJECT_NAME/.worktrees/<task-id>`
-for isolation when multiple tasks run concurrently — `git worktree add`
-runs worker-side, scoped to a subdirectory of the same mount, so no
-additional host mount is needed per task.
+Read/write bind mount of the actual codebase the team works on. Kanban's
+default task workspace is set via `hermes kanban boards create
+--default-workdir /workspace/$PROJECT_NAME` (imperative, not a config.yaml
+key — see Tier 0). Individual tasks can claim
+`worktree:/workspace/$PROJECT_NAME/.worktrees/<task-id>` for isolation when
+multiple tasks run concurrently.
 
 **Why bind-mount instead of a container-managed clone:** live host-side
 visibility (your editor, `git log`, `git diff` all see the same tree the
 agents are working in) plus no need for the container to hold its own git
-credentials for this repo. The tradeoff is weaker isolation than a fully
-container-managed clone — accepted deliberately for this single-project
-trial; revisit if/when the multi-project topology (migration plan §8)
-needs stronger separation between concurrent projects sharing a host.
+credentials for this repo.
 
 ## Tier 0 — provisioning, not a mount
 
-`bootstrap.sh` isn't a volume at all — it's the script that turns Tiers 1–3
-into a running profile + board (creates the Hermes profile, the Kanban
-board, registers the 8 worker profiles, wires notification scope). It's
-idempotent and takes `<project-name> <repo-path>` as arguments specifically
-so a second project is one invocation, not a repeat of manual setup — see
-the "parameterize bootstrap for per-project reuse" task.
+`bootstrap.ps1` / `bootstrap.sh` turn Tiers 1–3 into a running profile set +
+board. Confirmed real command sequence (every line actually run once
+against a live container before being put in the scripts):
 
-**Caveat carried over honestly:** the exact `hermes` CLI subcommand names
-used in `bootstrap.sh` (`profile create`, `kanban boards create`, `kanban
-worker-profile apply`, `kanban notify-subscribe`) are this plan's
-best-available reading of the public CLI reference, not yet verified
-against a running instance. First real run (task #7, dry run) is where
-that gets checked and the script gets corrected if the surface differs.
+1. Seed `./state/data/config.yaml` from `config/config.yaml` (host copy,
+   not a mount — see Tier 1 above for why).
+2. `docker compose up -d`.
+3. `hermes profile create <name> --description "..." --no-alias` for each
+   of the 8 personas — this is the real command; **there is no `hermes
+   kanban worker-profile apply`**, that was an invented command name that
+   doesn't exist in the CLI at all.
+4. Overlay `profiles/<name>/{config.yaml,SOUL.md}` onto
+   `state/data/profiles/<name>/`, then `docker exec ... chown hermes:hermes`
+   on the copied files (see the ownership note in Tier 2).
+5. `hermes kanban boards create <project> --default-workdir
+   /workspace/<project> --switch` — confirmed idempotent (re-running prints
+   "already exists" and exits 0).
+
+**What bootstrap deliberately does NOT do:** subscribe anything to
+notifications. `hermes kanban notify-subscribe` is task-scoped
+(`notify-subscribe <task-id>`), not board/profile/scope-scoped — there is
+no `--board`/`--profile`/`--scope` form of this command. Subscribe the
+orchestrator's top-level task explicitly once it exists, as a normal part
+of starting real work, not as a bootstrap step.

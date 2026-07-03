@@ -1,55 +1,68 @@
 services:
   hermes-agent:
-    image: ghcr.io/nousresearch/hermes-agent:${HERMES_IMAGE_TAG:-latest}
+    image: nousresearch/hermes-agent:${HERMES_IMAGE_TAG:-latest}
     container_name: ${PROJECT_NAME:-eng-team}-hermes
     restart: unless-stopped
+    command: gateway run
+    # NOTE (corrected 2026-07-02): image is on Docker Hub, NOT ghcr.io — the
+    # earlier ghcr.io/nousresearch/hermes-agent reference was wrong and
+    # caused "unauthorized" pulling it. Data root is /opt/data, NOT
+    # /home/node/.hermes — every mount path below was corrected to match
+    # the verified docs at https://hermes-agent.nousresearch.com/docs/user-guide/docker
+
+    shm_size: "1g"   # required for Playwright/browser tools per official docs
 
     ports:
-      # Gateway (CLI is primary interface for the trial; gateway port still
-      # exposed for later chat-platform integration, loopback-only for now)
-      - "127.0.0.1:8642:8642"
-      # Kanban dashboard — read-only visibility, loopback-only, no auth
-      # infra required at this binding (do NOT change to 0.0.0.0 without
-      # adding an auth layer in front — see docs/MOUNTS.md).
-      - "127.0.0.1:9119:9119"
+      - "127.0.0.1:8642:8642"   # gateway / OpenAI-compatible API
+      - "127.0.0.1:9119:9119"   # dashboard — see dashboard auth note below
 
     environment:
-      - HERMES_PROFILE=${PROJECT_NAME:-eng-team}
       - Z_AI_API_KEY=${Z_AI_API_KEY}
-      - HERMES_KANBAN_BOARD=${PROJECT_NAME:-eng-team}
+      - HERMES_DASHBOARD=1
+      # Dashboard auth is MANDATORY as of the June 2026 hardening for any
+      # non-loopback bind, and the dashboard binds 0.0.0.0 *inside* the
+      # container by default (required for -p port publishing to reach it
+      # at all — a container-internal 127.0.0.1 bind is NOT reachable via
+      # published ports, confirmed from the docs). So even though we only
+      # publish to 127.0.0.1 on the HOST side, we still need real auth
+      # configured, or the container fails closed at startup. Using the
+      # bundled username/password provider (documented as the zero-infra
+      # option for a trusted homelab/local box):
+      - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${HERMES_DASHBOARD_USERNAME:-damon}
+      - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${HERMES_DASHBOARD_PASSWORD}
+      - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_SECRET}
 
     volumes:
       # ---------------------------------------------------------------
-      # TIER 1 — read-only, host-versioned, curated assets.
-      # Everything here is authored on the host, committed to this repo,
-      # and mounted read-only so neither the agent nor the self-improving
-      # skill loop can silently mutate the baseline. Edit on host, commit,
-      # restart the container to pick up changes.
+      # The ENTIRE Hermes data root is one directory: /opt/data (maps to
+      # host ~/.hermes/ in the docs' own examples). This replaces the
+      # three-way split I originally designed against an invented
+      # /home/node/.hermes path structure — Hermes does not expose a
+      # granular per-subpath mount contract the way that design assumed.
+      # See docs/MOUNTS.md for how the read-only/writable split below is
+      # actually achieved within that constraint.
       # ---------------------------------------------------------------
-      - ./skills:/home/node/.hermes/skills/curated:ro
-      - ./profiles:/home/node/.hermes/profiles-src:ro
-      - ./hooks:/home/node/.hermes/hooks:ro
-      - ./config/config.yaml:/home/node/.hermes/config.yaml:ro
+      - ./state/data:/opt/data
 
-      # ---------------------------------------------------------------
-      # TIER 2 — writable, host-backed state. Survives a container
-      # recycle (docker compose up/down without -v). Only wiped
-      # deliberately with `docker compose down -v` (see task: verify
-      # teardown/recreate cycle — that test wipes ONLY this tier).
-      # ---------------------------------------------------------------
-      - ./state/kanban:/home/node/.hermes/kanban
-      - ./state/memory:/home/node/.hermes/memory
-      - ./state/learned-skills:/home/node/.hermes/skills/learned
-      - ./state/credentials:/home/node/.hermes/credentials
-      - ./state/logs:/home/node/.hermes/logs
+      # Curated (read-only, host-versioned) skills — mounted at a path
+      # OUTSIDE /opt/data specifically so it can be read-only without
+      # fighting Hermes's own writes to /opt/data/skills (the default,
+      # writable, agent-managed skills dir). Referenced via config.yaml's
+      # skills.external_dirs (confirmed real key). The OS-level read-only
+      # mount is what actually enforces "agent can't rewrite the curated
+      # baseline" — Hermes's own docs say external_dirs is not itself a
+      # write-protection boundary, so the read-only mount is load-bearing.
+      - ./skills:/opt/curated-skills:ro
 
-      # ---------------------------------------------------------------
-      # TIER 3 — target project source. Read/write bind mount + git
-      # worktree isolation per task (see docs/MOUNTS.md, "source access"
-      # decision). Set PROJECT_REPO_PATH in .env.
-      # ---------------------------------------------------------------
+      # Guardrail hook scripts — read-only for the same reason (agent must
+      # not be able to edit its own guardrails). Referenced from
+      # config.yaml hooks.pre_tool_call `command` paths.
+      - ./hooks:/opt/hooks:ro
+
+      # Tier 3 — target project source, read/write, bind-mount + worktree
+      # per task (see docs/MOUNTS.md).
       - ${PROJECT_REPO_PATH}:/workspace/${PROJECT_NAME:-project}
 
-    working_dir: /home/node
+    working_dir: /opt/data
     stdin_open: true
     tty: true

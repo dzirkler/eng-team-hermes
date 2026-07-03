@@ -7,39 +7,52 @@
  * best-effort (relied on the calling persona self-reporting via
  * SDD_PERSONA env / event.session?.persona, and fell back to ALLOW when it
  * couldn't tell who was calling). This hook does not read or care about
- * which profile issued the call — it fires on the tool_input content alone,
- * for every profile, always. That closes the exact gap that caused the
- * PR #172 incident (see orchestrator profile.md): the rule lived only in
- * prose before, and a model that "forgot" the rule had nothing mechanical
- * stopping it.
+ * which profile issued the call — it fires on the tool_input content alone.
+ * That closes the exact gap that caused the PR #172 incident (see
+ * orchestrator profile.md): the rule lived only in prose before, and a
+ * model that "forgot" the rule had nothing mechanical stopping it.
  *
- * Contract (Hermes pre_tool_call hook protocol):
- *   exit 0  -> allow
- *   exit 2  -> block; stderr surfaced to the calling profile as the reason
+ * Contract (VERIFIED against https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks,
+ * 2026-07-02 — this differs from V2's Claude Code hook contract, which used
+ * exit codes; that assumption was wrong and is corrected here):
  *
- * Hermes invokes this for every tool call across every worker profile
- * (config.yaml: hooks.pre_tool_call is global, not profile-scoped).
+ *   Hermes shell hooks receive a JSON event on stdin:
+ *     {"hook_event_name": "pre_tool_call", "tool_name": ..., "tool_input": {...},
+ *      "session_id": ..., "cwd": ..., "extra": {"task_id": ..., "tool_call_id": ...}}
+ *
+ *   To BLOCK, print JSON to stdout (either shape is accepted):
+ *     {"action": "block", "message": "<reason>"}      <- used here (Hermes-canonical)
+ *     {"decision": "block", "reason": "<reason>"}      <- Claude-Code-style, also accepted
+ *
+ *   To ALLOW: print nothing meaningful (or any non-block JSON) to stdout.
+ *   Exit code is NOT the mechanism — non-zero exit / malformed JSON / timeout
+ *   all just log a warning and are treated as a no-op, NOT a block. Do not
+ *   rely on process.exit(2) the way V2's no-op-guard.js did; it would
+ *   silently fail open here.
+ *
+ * Declared in config.yaml under hooks.pre_tool_call — see config/config.yaml.
  */
 "use strict";
 
 const fs = require("fs");
 
 function allow() {
+  // No output = no block directive = allow. Exiting 0 explicitly for
+  // clarity, but per the contract above, exit code plays no role.
   process.exit(0);
 }
 
 function block(reason) {
-  console.error(reason);
-  process.exit(2);
+  process.stdout.write(JSON.stringify({ action: "block", message: reason }));
+  process.exit(0); // exit code is irrelevant to the block decision — see contract note above
 }
 
 let rawStdin = "";
 try {
   rawStdin = fs.readFileSync(0, "utf8");
 } catch (e) {
-  // No stdin — not running under the hook runtime. Fail closed is wrong
-  // here (would break standalone testing), so allow, matching V2's
-  // documented "no stdin -> standalone -> allow" behavior.
+  // No stdin — not running under the hook runtime (e.g. standalone test
+  // invocation). Nothing to inspect, so allow.
   allow();
 }
 
@@ -47,10 +60,10 @@ let event = {};
 try {
   event = JSON.parse(rawStdin || "{}");
 } catch (e) {
-  // Malformed event JSON. Do NOT fail open on a guard whose entire job is
-  // blocking a destructive mutation — if we can't parse the event, we
-  // can't inspect tool_input, so there's nothing to match against anyway.
-  // Allow, but this state is worth investigating if seen frequently.
+  // Malformed event JSON. Can't inspect tool_input, so nothing to match
+  // against — allow, but this state is worth investigating if seen
+  // frequently (Hermes itself logs a warning on malformed hook output;
+  // this is the inbound side, worth the same suspicion).
   allow();
 }
 

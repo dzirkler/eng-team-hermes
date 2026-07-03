@@ -1,0 +1,38 @@
+# Debugger worker profile config.yaml — see profiles/orchestrator/config.yaml
+# for the full explanation of platform_toolsets vs. hooks. Needs `terminal`
+# and `code_execution` to run existing tests / reproduce bugs, but
+# `write_file`/`patch` are mechanically blocked — this profile diagnoses,
+# it never implements the fix (hands off to full-stack-engineer). Note:
+# terminal access alone can still mutate the filesystem via shell redirects
+# (`>`, `sed -i`, `tee`) — the hook only covers the two dedicated
+# file-mutation tool calls, not shell-based writes. Same residual gap as
+# every profile with both `terminal` and a write-blocking hook; documented
+# rather than silently assumed closed.
+
+model:
+  provider: zai
+  default: glm-5.1
+  api_key_env: Z_AI_API_KEY
+
+platform_toolsets:
+  cli:
+    - kanban
+    - file
+    - memory
+    - skills
+    - todo
+    - session_search
+    - terminal
+    - code_execution
+
+skills:
+  external_dirs:
+    - /opt/curated-skills
+  write_approval: true
+
+hooks:
+  pre_tool_call:
+    - command: /opt/hooks/no_merge_guard.js
+      timeout: 10
+    - command: /opt/hooks/no_write_guard.js
+      timeout: 10
