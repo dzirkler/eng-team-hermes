@@ -18,6 +18,18 @@ services:
 
     environment:
       - Z_AI_API_KEY=${Z_AI_API_KEY}
+      # Pin the Z.AI base URL explicitly rather than relying solely on each
+      # profile's config.yaml `model.base_url`. Confirmed live 2026-07-03:
+      # hermes_cli/auth.py's _resolve_zai_base_url() runs a background
+      # endpoint auto-probe (global/cn/coding-global/coding-cn) on every
+      # agent init, and in observed testing the probe's result won a race
+      # against the configured model.base_url in 1 of 4 calls (landing on
+      # the wrong, non-coding-plan `open.bigmodel.cn` endpoint even though
+      # every profile's config.yaml explicitly set the coding endpoint).
+      # GLM_BASE_URL is checked first and short-circuits the probe entirely
+      # (`if env_override: return env_override`, before any probing) — this
+      # is the reliable way to pin the endpoint, not model.base_url alone.
+      - GLM_BASE_URL=${GLM_BASE_URL:-https://api.z.ai/api/coding/paas/v4}
       - HERMES_DASHBOARD=1
       # Dashboard auth is MANDATORY as of the June 2026 hardening for any
       # non-loopback bind, and the dashboard binds 0.0.0.0 *inside* the

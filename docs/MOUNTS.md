@@ -97,8 +97,19 @@ overrides the `zai` provider's built-in standard-endpoint default (confirmed
 in `providers/base.py` / `hermes_cli/config.py` inside a live container).
 The same `Z_AI_API_KEY` works against both the standard and coding
 endpoints — verified live, no auth error — so this didn't require a second
-key. See `docs/temp/V3-Supplement-Model-and-Key-Binding.md` §8 for the full
-writeup.
+key.
+
+**Do not rely on `model.base_url` alone.** Live testing found a real race:
+Hermes probes Z.AI endpoints on every agent init
+(`hermes_cli/auth.py:_resolve_zai_base_url`), and that probe's result won
+over the configured `model.base_url` in 1 of 4 observed calls, silently
+landing on the wrong (non-coding) endpoint. The env var `GLM_BASE_URL`
+short-circuits the probe entirely and is set container-wide in
+`docker-compose.yml`'s `environment:` block — that's the actually
+load-bearing pin; `model.base_url` in each profile's config.yaml is
+belt-and-suspenders on top of it. See
+`docs/temp/V3-Supplement-Model-and-Key-Binding.md` §8 for the full writeup
+and the repeated-call evidence.
 
 ### Guardrail mechanism (the open question this whole rewrite was about)
 
