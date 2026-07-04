@@ -17,6 +17,27 @@
 # CLI-imperative operations run by bootstrap.ps1/.sh, not declarative config
 # — see docs/temp/handoff-2026-07-02.md for the full resolution writeup.
 
+# Concurrency cap for THIS team's gateway. `max_concurrent_sessions` is a
+# global active-session slot cap (file-locked lease registry) across the
+# interactive orchestrator + every kanban worker the dispatcher spawns —
+# confirmed in hermes_cli/active_sessions.py + config.py (default None =
+# unbounded; at cap the dispatcher just defers spawning to the next tick, it
+# does not error). It is PER-TEAM: each team's container has its own lease
+# registry, so this does NOT coordinate across the two teams you run
+# concurrently.
+#
+# IMPORTANT — this bounds burst/infra, NOT your GLM spend. The GLM Coding Plan
+# limit is a PROMPT BUDGET per rolling 5h window (Pro ≈ 400 prompts/5h, burned
+# 2–3x peak/off-peak), not a concurrency limit. Parallel vs. serial costs the
+# same total prompts; parallel just burns the shared budget faster. Both teams
+# draw from ONE Coding Plan pool via the LiteLLM proxy, so the real cross-team
+# ceiling belongs at LiteLLM (per-virtual-key RPM/budget), not here. This value
+# just keeps one team from thundering-herd on the proxy/container. 3 → up to
+# ~6 concurrent workers across your two teams; raise if the proxy + budget have
+# headroom, lower if you see 5h-window hard-stops mid-feature. The high-volume
+# Implement workers are GLM-4.7 (cheap tier), which stretches the budget.
+max_concurrent_sessions: 3
+
 model:
   provider: zai
   # Confirmed real: "zai" is a canonical provider slug and "glm-5.2" is a

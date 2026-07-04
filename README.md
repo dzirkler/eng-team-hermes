@@ -60,8 +60,20 @@ scopes notifications to the orchestrator's top-level task only.
 session with the orchestrator. That's the only thing you talk to; per the
 single-point-of-contact design, specialist worker profiles cannot notify or
 block you directly (see `docs/MOUNTS.md` Tier 1 / the migration plan §3).
-Read-only dashboard at `http://127.0.0.1:9119` if you want to look under
-the hood — never required, per migration plan §6.
+
+**Watching the work:** the dashboard at `http://127.0.0.1:9119` (basic auth —
+`HERMES_DASHBOARD_USERNAME` / `HERMES_DASHBOARD_PASSWORD` from `.env`) includes
+the full **Kanban board UI** — lanes by profile, card detail, comments,
+filters, "nudge dispatcher". That's where you watch progress and catch the
+orchestrator's checkpoint (`kanban_block(needs_input)`) cards. Bound to
+`127.0.0.1` only.
+
+**Notifications:** for early runs, docker-exec + the board are enough — the
+checkpoint blocks show up on the board (pull). For push notifications, Hermes
+supports messaging platforms (Discord/Slack/Telegram/WhatsApp/Weixin) via
+`hermes gateway setup`, then subscribe a card with `hermes kanban
+notify-subscribe --platform <p> --chat-id <you> <task-id>`. Note: each bot
+allows only one active connection, so running two teams needs one bot per team.
 
 ## Repeatability — tearing down and starting over
 

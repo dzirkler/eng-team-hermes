@@ -30,11 +30,25 @@ platform_toolsets:
 skills:
   external_dirs:
     - /opt/curated-skills
+    # Version-pinned speckit-* skills (speckit/README.md). Per-profile config
+    # does NOT inherit root config/config.yaml's external_dirs (docs/MOUNTS.md),
+    # so each profile that runs SDD stages must list this mount itself. This
+    # profile owns Constitution/Specify/Clarify/Analyze → speckit-constitution,
+    # speckit-specify, speckit-clarify, speckit-analyze.
+    - /opt/speckit-skills
   write_approval: true
 
+# NOTE: no_write_guard.js was REMOVED here (2026-07-03). In the Hermes-native
+# model the orchestrator force-loads speckit-constitution/specify/clarify/
+# analyze into THIS worker (via kanban --skill), and those procedures WRITE
+# their own artifacts (constitution.md, spec.md, ...). A read-only PM can't run
+# them — that only worked in V2, which sub-delegated generation to a separate
+# writer. So this profile now authors its own SDD artifacts. Guardrails that
+# remain: no `terminal`/`code_execution` toolset (can't run or commit code) and
+# no_merge_guard.js (can't merge). Write access is unscoped (Hermes `file` has
+# no path-glob), so "PM writes only spec-folder artifacts, never code" is
+# discipline (see SOUL.md), the same accepted gap the engineer profiles carry.
 hooks:
   pre_tool_call:
     - command: /opt/hooks/no_merge_guard.js
-      timeout: 10
-    - command: /opt/hooks/no_write_guard.js
       timeout: 10

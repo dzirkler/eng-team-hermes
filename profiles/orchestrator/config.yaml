@@ -16,8 +16,8 @@
 #      cli` against a live profile's config.yaml). Coarse: a whole toolset
 #      is on or off, no sub-tool split. "file" is one toolset covering
 #      read_file/write_file/patch/search_files together, so it must stay
-#      enabled here (orchestrator needs read_file/search_files for
-#      delegation context) rather than removed.
+#      enabled here (orchestrator needs read_file/search_files to read spec/
+#      plan/tasks artifacts for gating and decomposition) rather than removed.
 #   2. hooks.pre_tool_call below — matches on the real per-tool names
 #      within an enabled toolset. no_write_guard.js blocks write_file/patch
 #      specifically, leaving read_file/search_files usable. This is the
@@ -50,7 +50,14 @@ platform_toolsets:
     - todo
     - session_search
     - clarify
-    - delegation
+    # NOTE: the `delegation` (delegate_task in-session subagent) toolset is
+    # deliberately NOT enabled. Team-level fan-out is done the Hermes-native
+    # way — the orchestrator decomposes work into Kanban cards and the
+    # gateway dispatcher spawns each assigned profile as its own OS process
+    # (see SOUL.md + docs/MOUNTS.md). delegate_task is a separate, in-session
+    # mechanism for a single worker to parallelize sub-steps within one run;
+    # the orchestrator doesn't need it (and the official docs restrict
+    # orchestrator profiles to coordination toolsets).
 
 skills:
   external_dirs:

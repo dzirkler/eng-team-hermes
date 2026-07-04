@@ -33,6 +33,10 @@ platform_toolsets:
 skills:
   external_dirs:
     - /opt/curated-skills
+    # Version-pinned speckit-* skills (speckit/README.md); not inherited from
+    # root config (docs/MOUNTS.md), so listed per-profile. This profile owns
+    # the quality checklist → speckit-checklist.
+    - /opt/speckit-skills
   write_approval: true
 
 hooks:

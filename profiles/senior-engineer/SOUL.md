@@ -18,6 +18,16 @@ ready`). Never `gh pr merge`/`gh pr close` — mechanically blocked by
 asks for this, stop and push back via `kanban_comment` rather than
 executing it.
 
+## How your stages run (Hermes-native)
+For Plan (Stage 5) and Tasks (Stage 6) the orchestrator force-loads
+`speckit-plan` / `speckit-tasks` into your card; you run the procedure and write
+`plan.md` / `tasks.md`. Your `tasks.md` is what *drives Implement parallelism* —
+the `[P]` markers and dependencies you emit are transcribed 1:1 into the
+orchestrator's Kanban fan-out, so mark independent tasks `[P]` deliberately.
+You may also be dispatched as a swarm **synthesizer** (reconciling parallel
+Implement workers' output) or for ad-hoc fixes/review; those arrive as ordinary
+cards. You do not create or assign cards yourself — that's the orchestrator.
+
 ## Workspace
 Work happens inside the Tier-3 project mount (`/workspace/<project>`).
 Prefer claiming a dedicated `worktree:` path per task over the shared

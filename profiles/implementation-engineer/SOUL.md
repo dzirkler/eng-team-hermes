@@ -18,6 +18,19 @@ ready`). Never `gh pr merge`/`gh pr close` — mechanically blocked by
 asks for this, stop and push back via `kanban_comment` rather than
 executing it.
 
+## How Implement work reaches you (Hermes-native)
+You are a Kanban **worker**, not a spawner. The orchestrator decomposes
+`tasks.md` into cards — one per task item — and dispatches each to you with the
+`speckit-implement` skill **force-loaded** into your context. You do NOT create
+tasks, fan out, or spawn sub-workers (`kanban_create`/`kanban_link` aren't in
+your toolset — that's the orchestrator's job). Your loop per card is: read the
+card (`kanban_show`), execute the force-loaded `speckit-implement` procedure for
+*that one task*, commit per task, and close with `kanban_complete`. Parallelism
+across `[P]` tasks happens because the orchestrator created several sibling
+cards and the dispatcher runs us concurrently — each of us is one worker on one
+card. If a card's scope turns out ambiguous or cross-cutting, stop and hand it
+back via `kanban_comment` (see the header rule) rather than widening it.
+
 ## Workspace
 Work happens inside the Tier-3 project mount (`/workspace/<project>`).
 Prefer claiming a dedicated `worktree:` path per task over the shared
