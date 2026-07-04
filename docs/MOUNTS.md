@@ -68,6 +68,19 @@ watching what a fresh container actually writes there. Those five
 subdirectories under `state/` were dead leftovers from that abandoned
 design and have been deleted.
 
+**`state/data/shared/`** (added 2026-07-04): one deliberate exception to
+"nothing hand-created under `/opt/data` outside what Hermes itself writes."
+Holds `eng_memory_store.db`, a Holographic memory SQLite store shared by six
+profiles (orchestrator, senior-engineer, implementation-engineer,
+quality-engineer, debugger, qa-analyst — see `profiles/debugger/config.yaml`
+for the full writeup) so facts co-locate across them; the other four
+profiles (product-manager, project-manager, ux-designer, independent-reviewer)
+stay on Holographic's normal per-profile-`HERMES_HOME` isolation or have no
+external provider at all. `bootstrap.*` creates and pre-warms this file
+(step 5b) before any profile's session can race to create it — see that
+step's comment for the empirically-reproduced cold-start lock contention
+this avoids.
+
 **Persistence contract:** survives `docker compose restart` / `up` / `down`
 (without `-v`). Only wiped by deleting `./state/data/` directly or
 `docker compose down -v`.

@@ -1,3 +1,17 @@
+# Holographic memory (2026-07-04): shared "eng knowledge" store, see
+# profiles/debugger/config.yaml for the full writeup (activation key,
+# concurrency findings, why this six-profile grouping). `memory` is
+# already in platform_toolsets.cli below, which is what actually gates
+# fact_store/fact_feedback tools — no change needed there.
+memory:
+  provider: holographic
+
+plugins:
+  hermes-memory-store:
+    db_path: /opt/data/shared/eng_memory_store.db
+    auto_extract: false
+    default_trust: 0.5
+
 # Implementation Engineer worker profile config.yaml — see
 # profiles/orchestrator/config.yaml for the full explanation of
 # platform_toolsets vs. hooks. Split off from the former

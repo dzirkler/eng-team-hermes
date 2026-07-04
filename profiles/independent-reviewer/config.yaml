@@ -1,3 +1,16 @@
+# Holographic memory (2026-07-04): deliberately NOT given an external
+# memory provider — same reasoning as omitting the `memory` toolset below
+# (see profiles/debugger/config.yaml for the team-wide writeup). Also
+# disabling BUILT-IN memory injection here: `memory_enabled` defaults to
+# true in the schema regardless of the `memory` toolset (it governs
+# system-prompt context injection, a separate mechanism from the toolset
+# gate — confirmed in hermes_cli/config.py's DEFAULT_CONFIG), so without
+# this override this profile's own accumulated MEMORY.md/USER.md would
+# still get injected at session start, undermining the "genuinely fresh
+# read with no prior knowledge" design intent below.
+memory:
+  memory_enabled: false
+
 # Independent Reviewer worker profile config.yaml — see
 # profiles/orchestrator/config.yaml for the full explanation of
 # platform_toolsets vs. hooks. Deliberately omits the `memory` toolset

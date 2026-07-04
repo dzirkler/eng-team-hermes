@@ -1,3 +1,14 @@
+# Holographic memory (2026-07-04): isolated (no shared db_path) — see
+# profiles/product-manager/config.yaml for the isolation rationale and
+# profiles/debugger/config.yaml for the full writeup.
+memory:
+  provider: holographic
+
+plugins:
+  hermes-memory-store:
+    auto_extract: false
+    default_trust: 0.5
+
 # Project Manager worker profile config.yaml — see profiles/orchestrator/config.yaml
 # for the full explanation of platform_toolsets vs. hooks. This profile
 # needs `terminal` for git/gh operations (branch setup, draft PR, `gh pr

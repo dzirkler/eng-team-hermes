@@ -203,6 +203,30 @@ foreach ($p in $ProfileNames) {
 docker exec $Container chown hermes:hermes /opt/data/config.yaml
 
 # ---------------------------------------------------------------------
+# 5b. Holographic memory: pre-create + pre-warm the shared "eng knowledge"
+#     store (see profiles/debugger/config.yaml for the full writeup) BEFORE
+#     any profile's session can touch it. Empirically confirmed 2026-07-04:
+#     two processes racing to create the SAME not-yet-existing SQLite file
+#     can hit an unhandled "database is locked" error on the initial WAL
+#     pragma (hermes_state.py's WAL-fallback only catches NFS/SMB/FUSE
+#     error strings, not ordinary lock contention -- it re-raises). Once
+#     the file/schema/WAL mode already exist, concurrent writers are fine
+#     (also confirmed empirically). Warming here means the six sharing
+#     profiles' first real fact_store call always hits the safe,
+#     already-initialized case instead of racing each other on first use.
+#     Idempotent: MemoryStore() only creates what's missing.
+# ---------------------------------------------------------------------
+Write-Host "==> Pre-warming shared Holographic memory store..."
+New-Item -ItemType Directory -Force -Path "state/data/shared" | Out-Null
+docker exec $Container python3 -c @'
+import sys
+sys.path.insert(0, "/opt/hermes/plugins/memory/holographic")
+from store import MemoryStore
+MemoryStore(db_path="/opt/data/shared/eng_memory_store.db")
+'@
+docker exec $Container chown -R hermes:hermes /opt/data/shared
+
+# ---------------------------------------------------------------------
 # 6. Kanban board: create (idempotent - re-running prints "already
 #    exists" and exits 0, confirmed against a live container), set this
 #    project's default task workspace, and switch to it.

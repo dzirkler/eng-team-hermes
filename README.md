@@ -127,3 +127,14 @@ to proceed toward multi-project.
   exposes the calling profile as `event.profile` (or falls back to a
   couple of guesses) — confirm the actual field name against a real event
   payload during task #9's negative test and fix the hook if it's wrong.
+- **Holographic memory (2026-07-04) verified against a sibling deployment,
+  not this repo's own container.** Per the "this repo is a template, not
+  runnable itself" note above, all the live verification behind the
+  `memory.provider`/`plugins.hermes-memory-store` config in each
+  `profiles/*/config.yaml` (activation key, per-profile isolation,
+  WAL/concurrency behavior) was done against `socialcampaignmanager-hermes`
+  — a different project's container running the same Hermes image and
+  bootstrapped from an earlier version of this same template — not an
+  eng-team-hermes instance. The Hermes version/schema should match, but
+  re-verify `hermes memory status` on the first real bootstrap of a new
+  project from this repo before trusting it blind.

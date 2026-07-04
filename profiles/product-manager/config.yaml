@@ -1,3 +1,22 @@
+# Holographic memory (2026-07-04): isolated (no shared db_path) — this
+# profile's requirement/process notes would just add noise to the shared
+# "eng knowledge" store used by orchestrator/senior-engineer/
+# implementation-engineer/quality-engineer/debugger/qa-analyst (see
+# profiles/debugger/config.yaml for the full writeup). Omitting db_path
+# means it resolves to this profile's own $HERMES_HOME (confirmed live:
+# get_profile_dir() gives each named profile a distinct directory, and an
+# isolation test — two throwaway profiles, fact added under one, searched
+# from the other — found zero cross-profile leakage). `memory` is already
+# in platform_toolsets.cli below, which is what gates fact_store/
+# fact_feedback — no change needed there.
+memory:
+  provider: holographic
+
+plugins:
+  hermes-memory-store:
+    auto_extract: false
+    default_trust: 0.5
+
 # Product Manager worker profile config.yaml — see profiles/orchestrator/config.yaml
 # for the full explanation of platform_toolsets vs. hooks. This profile
 # reads context (file toolset, read-only via no_write_guard.js) and

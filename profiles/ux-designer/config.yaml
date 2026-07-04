@@ -1,3 +1,17 @@
+# Holographic memory (2026-07-04): isolated (no shared db_path) — see
+# profiles/product-manager/config.yaml for the isolation rationale and
+# profiles/debugger/config.yaml for the full writeup. Kept isolated as the
+# safe default absent a signal that UI work is a large enough share of
+# this team's output to justify design-brief recall leaking into the
+# engineering store; revisit if that changes.
+memory:
+  provider: holographic
+
+plugins:
+  hermes-memory-store:
+    auto_extract: false
+    default_trust: 0.5
+
 # UX Designer worker profile config.yaml — see profiles/orchestrator/config.yaml
 # for the full explanation of platform_toolsets vs. hooks. Needs file
 # read/write for design-brief docs but no shell/code-execution access.

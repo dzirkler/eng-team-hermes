@@ -9,6 +9,44 @@
 # every profile with both `terminal` and a write-blocking hook; documented
 # rather than silently assumed closed.
 
+# Holographic memory (2026-07-04): shared "eng knowledge" store with
+# orchestrator/senior-engineer/implementation-engineer/quality-engineer/
+# qa-analyst — activation is `memory.provider` (confirmed live against a
+# running Hermes container: this is the real on/off switch, NOT a
+# `plugins.hermes-memory-store.enabled` key, which doesn't exist in the
+# schema). db_path is a shared file so facts co-locate across these six
+# profiles (Holographic's trust-scoring/contradiction-detection only work
+# when facts share a store) — independent-reviewer and the PM/PgM/
+# ux-designer profiles are deliberately excluded, see their own config.yaml
+# comments. `memory` is already in this profile's platform_toolsets.cli
+# below, which is what actually gates the fact_store/fact_feedback tools
+# (confirmed in agent/memory_manager.py's memory_provider_tools_enabled) —
+# no toolset change needed here.
+#
+# auto_extract left false: prove signal quality before turning on
+# unreviewed automatic fact extraction at session end.
+#
+# Concurrency (confirmed live): Holographic opens SQLite with a 10s
+# busy-timeout and requests WAL mode (hermes_state.apply_wal_with_fallback),
+# which is safe for steady-state concurrent writers on this bind-mount type
+# (verified: PRAGMA journal_mode=WAL succeeds on /opt/data, not silently
+# downgraded to DELETE as it would be on NFS/SMB/FUSE). BUT the first-ever
+# touch of a not-yet-existing db_path is a real, empirically-reproduced
+# race: two processes creating the file simultaneously can hit an
+# *unhandled* `sqlite3.OperationalError: database is locked` during the
+# initial WAL pragma (hermes_state.py's fallback only catches NFS/SMB/FUSE
+# marker strings, not this one — it re-raises). Bootstrap pre-warms
+# eng_memory_store.db once (see bootstrap.sh/.ps1) specifically to avoid
+# six profiles racing to create it on first real use.
+memory:
+  provider: holographic
+
+plugins:
+  hermes-memory-store:
+    db_path: /opt/data/shared/eng_memory_store.db
+    auto_extract: false
+    default_trust: 0.5
+
 model:
   provider: zai
   # Flagship tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
