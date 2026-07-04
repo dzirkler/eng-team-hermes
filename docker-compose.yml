@@ -17,6 +17,12 @@ services:
       - "127.0.0.1:9119:9119"   # dashboard — see dashboard auth note below
 
     environment:
+      # Needed so config/config.yaml's terminal.cwd: /workspace/${PROJECT_NAME}
+      # actually expands inside the container — PROJECT_NAME was previously
+      # only a compose-file-level substitution (container name, volume
+      # path), never forwarded into the container's own env. Same default
+      # fallback as the volumes section below, for consistency.
+      - PROJECT_NAME=${PROJECT_NAME:-project}
       # Z_AI_API_KEY stays the REAL Z.AI key — do NOT replace it with the
       # LiteLLM virtual key. config/config.yaml's mcp_servers.zai-vision and
       # zai-web-search reference ${Z_AI_API_KEY} directly against real Z.AI
@@ -70,6 +76,14 @@ services:
       - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${HERMES_DASHBOARD_PASSWORD}
       - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_SECRET}
 
+      # 2026-07-03: ported from the global VS Code MCP config (see
+      # config/managed.yaml's mcp_servers block) — each of these is
+      # referenced via ${VAR} by one of the new mcp_servers entries there.
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-https://firecrawl.home.zirkler.com}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - MEMLORD_API_KEY=${MEMLORD_API_KEY}
+
     volumes:
       # ---------------------------------------------------------------
       # The ENTIRE Hermes data root is one directory: /opt/data (maps to
@@ -81,6 +95,16 @@ services:
       # actually achieved within that constraint.
       # ---------------------------------------------------------------
       - ./state/data:/opt/data
+
+      # Managed-scope config (mcp_servers, terminal.cwd/coding_context) —
+      # read-only, deep-merged by Hermes over EVERY profile's own
+      # config.yaml regardless of which is active (hermes_cli/
+      # managed_scope.py, default POSIX path /etc/hermes). This is the
+      # ONLY config surface that reaches every Kanban worker profile at
+      # once; see config/managed.yaml's header comment for why root
+      # config/config.yaml alone isn't enough (each profile is a fully
+      # separate HERMES_HOME).
+      - ./config/managed.yaml:/etc/hermes/config.yaml:ro
 
       # Curated (read-only, host-versioned) skills — mounted at a path
       # OUTSIDE /opt/data specifically so it can be read-only without
@@ -112,6 +136,17 @@ services:
       # per task (see docs/MOUNTS.md).
       - ${PROJECT_REPO_PATH}:/workspace/${PROJECT_NAME:-project}
 
-    working_dir: /opt/data
+    # 2026-07-04: was /opt/data. Changed so every `docker exec` (and the
+    # gateway daemon's own top-level process) starts inside the project
+    # repo, not Hermes's data root — needed for ad-hoc `hermes chat`
+    # sessions to have real git/repo awareness (coding_context's git
+    # snapshot, `git remote -v`, etc.). HERMES_HOME=/opt/data is pinned
+    # via its own explicit env var (see `docker exec ... env | grep
+    # HERMES_HOME`), not derived from cwd, so this is safe — nothing here
+    # reads Hermes's own data relative to cwd; every config.yaml path
+    # (skills.external_dirs, hooks.pre_tool_call) is already absolute.
+    # Kanban-dispatched workers are unaffected either way — they cd into
+    # their own per-task git worktree independently (see docs/MOUNTS.md).
+    working_dir: /workspace/${PROJECT_NAME:-project}
     stdin_open: true
     tty: true

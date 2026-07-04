@@ -93,30 +93,16 @@ skills:
     - /opt/speckit-skills
   write_approval: true
 
-mcp_servers:
-  # Reformatted 1:1 from D:\code\eng-team-plugin\.mcp.json, with the
-  # previously-hardcoded API key replaced by the Z_AI_API_KEY env var
-  # (set via .env / docker-compose, never written to this file).
-  #
-  # These two hit REAL Z.AI endpoints directly — they are NOT proxied
-  # through the LiteLLM base_url above (unlike the main model.* block,
-  # this is Z.AI's own MCP server / API, unrelated to chat completions).
-  # Z_AI_API_KEY must stay the real Z.AI key for these to keep working;
-  # do not repoint it at the LiteLLM virtual key (see docker-compose.yml).
-  zai-vision:
-    command: npx
-    args: ["-y", "@z_ai/mcp-server@latest"]
-    env:
-      Z_AI_API_KEY: ${Z_AI_API_KEY}
-      Z_AI_MODE: ZAI
-  zai-web-search:
-    type: remote
-    url: https://api.z.ai/api/mcp/web_search_prime/mcp
-    headers:
-      Authorization: "Bearer ${Z_AI_API_KEY}"
-  playwright:
-    command: npx
-    args: ["-y", "@playwright/mcp@latest"]
+# mcp_servers and terminal (cwd/coding_context) moved 2026-07-04 to
+# config/managed.yaml, bind-mounted read-only at /etc/hermes/config.yaml.
+# Hermes's managed-scope layer deep-merges that file over EVERY profile's
+# config regardless of which one is active; a key set only here (the root/
+# default profile's config.yaml) is invisible to every other profile, since
+# `hermes profile use <name>` repoints HERMES_HOME at a fully separate
+# /opt/data/profiles/<name>/config.yaml. See managed.yaml's header comment
+# for the full writeup (confirmed live: `hermes mcp list` showed zero
+# servers once a non-default profile was active, despite this file listing
+# 10).
 
 hooks:
   # hooks.<event> must be a list of {command, matcher?, timeout?} mappings —

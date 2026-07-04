@@ -26,6 +26,34 @@
 # terminal and code_execution are omitted from platform_toolsets.cli
 # entirely — the orchestrator coordinates via Kanban tool calls, not shell
 # commands, so there's no legitimate use case to leave a hole for.
+#
+# MCP servers are a SEPARATE gate from platform_toolsets, and were a real
+# gap until 2026-07-04: confirmed in hermes_cli/tools_config.py that
+# "MCP servers are expected to be available on all platforms by default" —
+# omitting terminal/code_execution above does nothing to stop orchestrator
+# from calling GitHub MCP tools directly (create_pull_request, push_files,
+# delete_file, etc.), which contradicts "never writes code or files
+# directly" just as much as a shell command would. hooks/no_merge_guard.js
+# blocks merge/close specifically (team-wide, all profiles), but nothing
+# else was scoped.
+#
+# Fix: mcp_servers.<name>.tools.include is a real fine-grained allow-list
+# (distinct from the coarse platform_toolsets), and — because managed-scope
+# (config/managed.yaml, /etc/hermes/config.yaml) deep-merges ON TOP of this
+# file rather than replacing it — this profile can narrow just the `tools`
+# leaf under mcp_servers.github while still inheriting url/headers/type
+# from the managed layer. Scoped to read-only issue-lookup tools: enough
+# for the orchestrator to reference real issue context when framing Kanban
+# cards, with no path to any GitHub mutation. Anything beyond this (opening
+# PRs, pushing files, editing issues) is a Kanban task delegated to
+# project-manager/senior-engineer, which have the full github MCP toolset.
+mcp_servers:
+  github:
+    tools:
+      include:
+        - issue_read
+        - list_issues
+        - search_issues
 
 model:
   provider: zai
@@ -58,6 +86,22 @@ platform_toolsets:
     # mechanism for a single worker to parallelize sub-steps within one run;
     # the orchestrator doesn't need it (and the official docs restrict
     # orchestrator profiles to coordination toolsets).
+
+# Confirmed live 2026-07-04: this is NOT the same key as platform_toolsets
+# above, and listing "kanban" there does NOT make kanban_create/
+# kanban_list/kanban_unblock actually callable. tools/kanban_tools.py's
+# _check_kanban_mode / _check_kanban_orchestrator_mode gate every kanban
+# tool on EITHER `HERMES_KANBAN_TASK` being set (true for a
+# dispatcher-spawned worker mid-task) OR this separate top-level
+# `toolsets:` list containing "kanban" (true for a profile that IS the
+# board-router, i.e. orchestrator, run ad-hoc via `hermes chat`, not
+# spawned by the dispatcher for a single task). Without this key, an
+# ad-hoc orchestrator session had kanban tools listed as "enabled" in the
+# toolset-name resolution step but every actual call was stripped at
+# runtime with "check failed" — which is exactly what surfaced as
+# orchestrator correctly reporting it had no real way to delegate.
+toolsets:
+  - kanban
 
 skills:
   external_dirs:

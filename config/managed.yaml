@@ -1,0 +1,103 @@
+# Managed-scope config — bind-mounted read-only to /etc/hermes/config.yaml
+# (see docker-compose.yml). Hermes's managed-scope layer (hermes_cli/
+# managed_scope.py) deep-merges this file over the config of WHICHEVER
+# profile is currently active, before that profile's own config.yaml is
+# even read — this is the only config surface that reaches every profile.
+#
+# This matters because each Kanban worker profile (orchestrator,
+# senior-engineer, etc.) is a FULLY SEPARATE config document: switching
+# profiles repoints HERMES_HOME at /opt/data/profiles/<name>, so a key set
+# only in the root config/config.yaml (seeded to /opt/data/config.yaml)
+# is invisible to every other profile — confirmed live: `hermes mcp list`
+# showed zero servers once `hermes profile use orchestrator` was active,
+# even though the root profile's config.yaml had all 10 configured.
+#
+# NOTE: terminal.cwd does NOT belong here (or in any config.yaml) — traced
+# it in cli.py: for the default "local" terminal backend, Hermes
+# unconditionally overwrites terminal.cwd with os.getcwd() at startup
+# (cli.py ~line 600), ignoring whatever config.yaml says. The actual lever
+# for an ad-hoc `hermes chat` session's git/repo awareness is the process's
+# real cwd — see docker-compose.yml's working_dir (set to the project's
+# workspace mount) and bootstrap's printed `docker exec -w ...` instructions.
+#
+# Keep this file to values that should be identical and non-overridable
+# for every profile. Model choice, platform_toolsets, and hooks stay
+# per-profile (profiles/<name>/config.yaml) — those are intentionally
+# different per persona.
+
+mcp_servers:
+  # Reformatted 1:1 from D:\code\eng-team-plugin\.mcp.json, with the
+  # previously-hardcoded API key replaced by the Z_AI_API_KEY env var
+  # (set via .env / docker-compose, never written to this file).
+  #
+  # These two hit REAL Z.AI endpoints directly — they are NOT proxied
+  # through the LiteLLM base_url (unlike the main model.* block in each
+  # profile's config.yaml — this is Z.AI's own MCP server / API, unrelated
+  # to chat completions). Z_AI_API_KEY must stay the real Z.AI key for
+  # these to keep working; do not repoint it at the LiteLLM virtual key
+  # (see docker-compose.yml).
+  zai-vision:
+    command: npx
+    args: ["-y", "@z_ai/mcp-server@latest"]
+    env:
+      Z_AI_API_KEY: ${Z_AI_API_KEY}
+      Z_AI_MODE: ZAI
+  zai-web-search:
+    type: remote
+    url: https://api.z.ai/api/mcp/web_search_prime/mcp
+    headers:
+      Authorization: "Bearer ${Z_AI_API_KEY}"
+  playwright:
+    command: npx
+    args: ["-y", "@playwright/mcp@latest"]
+
+  # Ported 2026-07-03 from the global VS Code user-level MCP config
+  # (C:\Users\damon\AppData\Roaming\Code\User\mcp.json), which is a
+  # separate config surface from this team's mcp_servers and was never
+  # part of the eng-team-plugin source the block above was reformatted
+  # from.
+  shadcn:
+    command: npx
+    args: ["-y", "shadcn@latest", "mcp"]
+
+  # GitHub's Copilot-hosted remote MCP. VS Code authenticates this via its
+  # own Copilot OAuth session, which isn't available in a headless
+  # container — using a PAT (Copilot-entitled) via Authorization header
+  # instead, per github-mcp-server's documented PAT auth path.
+  github:
+    type: remote
+    url: https://api.githubcopilot.com/mcp/
+    headers:
+      Authorization: "Bearer ${GITHUB_TOKEN}"
+      X-MCP-Toolsets: "git,issues,labels,projects,pull_requests,repos"
+
+  # Reuses the existing Z_AI_API_KEY (see zai-vision/zai-web-search above)
+  # — no new secret needed.
+  zread:
+    type: remote
+    url: https://api.z.ai/api/mcp/zread/mcp
+    headers:
+      Authorization: "Bearer ${Z_AI_API_KEY}"
+
+  next-devtools-mcp:
+    command: npx
+    args: ["-y", "next-devtools-mcp@0.3.6"]
+
+  firecrawl:
+    command: npx
+    args: ["-y", "firecrawl-mcp"]
+    env:
+      FIRECRAWL_API_URL: ${FIRECRAWL_API_URL}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY}
+
+  # No auth header in the source global config either — internal
+  # home.zirkler.com network trust, not a missing credential.
+  token-tracker:
+    type: remote
+    url: https://token-tracker.home.zirkler.com/mcp
+
+  memlord:
+    type: remote
+    url: https://memlord.home.zirkler.com/mcp
+    headers:
+      Authorization: "Bearer ${MEMLORD_API_KEY}"

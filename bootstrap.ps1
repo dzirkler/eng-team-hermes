@@ -107,6 +107,12 @@ if (-not $envValues["Z_AI_API_KEY"]) { $envValues["Z_AI_API_KEY"] = "replace-me"
 if (-not $envValues["GLM_API_KEY"]) { $envValues["GLM_API_KEY"] = "replace-me" }
 if (-not $envValues["GLM_BASE_URL"]) { $envValues["GLM_BASE_URL"] = "https://litellm.home.zirkler.com/v1" }
 if (-not $envValues["HERMES_IMAGE_TAG"]) { $envValues["HERMES_IMAGE_TAG"] = "latest" }
+# MCP servers ported 2026-07-03 from the global VS Code MCP config — see
+# config/config.yaml's mcp_servers block and .env.example for details.
+if (-not $envValues["GITHUB_TOKEN"]) { $envValues["GITHUB_TOKEN"] = "replace-me" }
+if (-not $envValues["FIRECRAWL_API_URL"]) { $envValues["FIRECRAWL_API_URL"] = "https://firecrawl.home.zirkler.com" }
+if (-not $envValues["FIRECRAWL_API_KEY"]) { $envValues["FIRECRAWL_API_KEY"] = "replace-me" }
+if (-not $envValues["MEMLORD_API_KEY"]) { $envValues["MEMLORD_API_KEY"] = "replace-me" }
 if (-not $envValues["HERMES_DASHBOARD_USERNAME"]) { $envValues["HERMES_DASHBOARD_USERNAME"] = "damon" }
 if (-not $envValues["HERMES_DASHBOARD_PASSWORD"] -or $envValues["HERMES_DASHBOARD_PASSWORD"] -eq "replace-me") {
     $envValues["HERMES_DASHBOARD_PASSWORD"] = New-RandomSecret 24
@@ -125,6 +131,15 @@ if ($envValues["Z_AI_API_KEY"] -eq "replace-me") {
 }
 if ($envValues["GLM_API_KEY"] -eq "replace-me") {
     Write-Host "    !! GLM_API_KEY not set (LiteLLM virtual key) - edit .env before starting the container."
+}
+if ($envValues["GITHUB_TOKEN"] -eq "replace-me") {
+    Write-Host "    !! GITHUB_TOKEN not set - mcp_servers.github will fail to auth. Edit .env if you need it."
+}
+if ($envValues["FIRECRAWL_API_KEY"] -eq "replace-me") {
+    Write-Host "    !! FIRECRAWL_API_KEY not set - mcp_servers.firecrawl will fail to auth. Edit .env if you need it."
+}
+if ($envValues["MEMLORD_API_KEY"] -eq "replace-me") {
+    Write-Host "    !! MEMLORD_API_KEY not set - mcp_servers.memlord will fail to auth. Edit .env if you need it."
 }
 
 # ---------------------------------------------------------------------

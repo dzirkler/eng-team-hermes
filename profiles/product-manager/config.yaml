@@ -52,3 +52,16 @@ hooks:
   pre_tool_call:
     - command: /opt/hooks/no_merge_guard.js
       timeout: 10
+
+# Opt-in stub for config/managed.yaml's mcp_servers (github, playwright,
+# firecrawl, etc.) — confirmed live 2026-07-04: Hermes only pulls in the
+# managed-scope MCP servers for a profile whose OWN config.yaml has a
+# NON-EMPTY mcp_servers key (an empty `mcp_servers: {}` does NOT count —
+# tested directly). Without this stub every profile except orchestrator
+# (which has its own real mcp_servers.github override) had ZERO MCP tools
+# despite managed.yaml listing 10 servers — a real gap from the original
+# MCP port. The actual server definitions (url/command/env) still come
+# from managed.yaml; this key only needs to be present to flip the
+# per-profile "include every globally enabled MCP server" default on.
+mcp_servers:
+  zread: {}

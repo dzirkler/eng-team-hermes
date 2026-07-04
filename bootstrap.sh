@@ -40,6 +40,13 @@
 
 set -euo pipefail
 
+# Git-Bash/MSYS rewrites absolute-looking POSIX paths (e.g. /opt/data/...)
+# passed to a Windows exe like docker.exe into host paths (e.g.
+# "C:/Program Files/Git/opt/data/..."), breaking every `docker exec ...
+# <container-side path>` call below on Windows. No-op on real POSIX
+# systems (Linux/macOS containers there don't have MSYS installed).
+export MSYS_NO_PATHCONV=1
+
 PROJECT_NAME="${1:?Usage: ./bootstrap.sh <project-name> <repo-path>}"
 REPO_PATH="${2:?Usage: ./bootstrap.sh <project-name> <repo-path>}"
 
@@ -73,7 +80,14 @@ profile_description() {
 
 random_secret() {
   local length="${1:-32}"
-  LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
+  local out
+  # head closing early after $length bytes sends SIGPIPE to tr, which under
+  # `set -o pipefail` makes this pipeline's exit status 141 and kills the
+  # script (set -e) — disable pipefail just for this call.
+  set +o pipefail
+  out="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length")"
+  set -o pipefail
+  printf '%s' "$out"
 }
 
 echo "==> Bootstrapping Hermes team for project: $PROJECT_NAME"
@@ -106,6 +120,12 @@ env_values["PROJECT_REPO_PATH"]="$REPO_PATH"
 : "${env_values[GLM_API_KEY]:=replace-me}"
 : "${env_values[GLM_BASE_URL]:=https://litellm.home.zirkler.com/v1}"
 : "${env_values[HERMES_IMAGE_TAG]:=latest}"
+# MCP servers ported 2026-07-03 from the global VS Code MCP config — see
+# config/config.yaml's mcp_servers block and .env.example for details.
+: "${env_values[GITHUB_TOKEN]:=replace-me}"
+: "${env_values[FIRECRAWL_API_URL]:=https://firecrawl.home.zirkler.com}"
+: "${env_values[FIRECRAWL_API_KEY]:=replace-me}"
+: "${env_values[MEMLORD_API_KEY]:=replace-me}"
 : "${env_values[HERMES_DASHBOARD_USERNAME]:=damon}"
 
 if [[ -z "${env_values[HERMES_DASHBOARD_PASSWORD]:-}" || "${env_values[HERMES_DASHBOARD_PASSWORD]}" == "replace-me" ]]; then
@@ -127,6 +147,15 @@ if [[ "${env_values[Z_AI_API_KEY]}" == "replace-me" ]]; then
 fi
 if [[ "${env_values[GLM_API_KEY]}" == "replace-me" ]]; then
   echo "    !! GLM_API_KEY not set (LiteLLM virtual key) — edit .env before starting the container."
+fi
+if [[ "${env_values[GITHUB_TOKEN]}" == "replace-me" ]]; then
+  echo "    !! GITHUB_TOKEN not set — mcp_servers.github will fail to auth. Edit .env if you need it."
+fi
+if [[ "${env_values[FIRECRAWL_API_KEY]}" == "replace-me" ]]; then
+  echo "    !! FIRECRAWL_API_KEY not set — mcp_servers.firecrawl will fail to auth. Edit .env if you need it."
+fi
+if [[ "${env_values[MEMLORD_API_KEY]}" == "replace-me" ]]; then
+  echo "    !! MEMLORD_API_KEY not set — mcp_servers.memlord will fail to auth. Edit .env if you need it."
 fi
 
 # ---------------------------------------------------------------------
