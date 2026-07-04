@@ -172,6 +172,18 @@ for ($i = 0; $i -lt 20; $i++) {
 if (-not $ready) { throw "container did not become ready in time" }
 
 # ---------------------------------------------------------------------
+# 3b. DooD container execution (docs/DOCKER_EXECUTION.md): the docker CLI
+#     binary + compose/buildx plugins were copied into the docker-cli-bin
+#     volume by the docker-cli-provisioner service (compose already waited
+#     for it via depends_on), mounted read-only at /opt/docker-cli. Not on
+#     PATH by default, so symlink it into place — idempotent (ln -sf).
+# ---------------------------------------------------------------------
+Write-Host "==> Wiring up docker CLI (DooD)..."
+docker exec $Container ln -sf /opt/docker-cli/bin/docker /usr/local/bin/docker
+docker exec $Container mkdir -p /usr/local/libexec/docker/cli-plugins
+docker exec $Container sh -c 'for f in /opt/docker-cli/cli-plugins/*; do [ -e "$f" ] && ln -sf "$f" "/usr/local/libexec/docker/cli-plugins/$(basename "$f")"; done; true'
+
+# ---------------------------------------------------------------------
 # 4. Create each worker profile (a real `hermes profile create`, not the
 #    invented `kanban worker-profile apply`). Idempotent: an existing
 #    profile errors with a message containing "already exists", which is

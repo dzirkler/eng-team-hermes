@@ -33,6 +33,8 @@ hooks/                   Two pre_tool_call guardrail hooks (no_merge_guard,
 state/                   Writable runtime state (gitignored except .gitkeep) —
                            kanban DB, memory, learned skills, credentials, logs
 docs/MOUNTS.md            Why the mount layout looks the way it does
+docs/DOCKER_EXECUTION.md Filtered-socket-proxy DooD setup so the team can
+                           build/run/tear down containers from its inner loop
 ```
 
 See `docs/MOUNTS.md` for the full read-only-vs-writable rationale before

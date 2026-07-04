@@ -84,6 +84,22 @@ services:
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
       - MEMLORD_API_KEY=${MEMLORD_API_KEY}
 
+      # DooD container execution (2026-07-04, see docs/DOCKER_EXECUTION.md).
+      # Points the docker CLI (symlinked into PATH by bootstrap, step 3b) at
+      # the deny-by-default socket proxy below instead of a raw socket
+      # mount — the team never gets root-on-host, only the whitelisted API
+      # subset the proxy exposes.
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+      # Forwarded so in-container scripts can build correct bind-mount
+      # paths for sibling containers they start. Those containers are
+      # created by the HOST daemon (via the proxy), so any `-v host:container`
+      # path the team passes to `docker run`/`docker compose` must resolve
+      # on the HOST, not inside this container — /workspace/${PROJECT_NAME}
+      # is meaningless to the host daemon. Use $PROJECT_REPO_PATH (or a
+      # subpath of it) instead of pwd/`/workspace/...` in any bind mount
+      # for a sibling container. See docs/DOCKER_EXECUTION.md.
+      - PROJECT_REPO_PATH=${PROJECT_REPO_PATH}
+
     volumes:
       # ---------------------------------------------------------------
       # The ENTIRE Hermes data root is one directory: /opt/data (maps to
@@ -136,6 +152,23 @@ services:
       # per task (see docs/MOUNTS.md).
       - ${PROJECT_REPO_PATH}:/workspace/${PROJECT_NAME:-project}
 
+      # DooD container execution: read-only docker CLI + compose plugin
+      # binary, populated once by docker-cli-provisioner below (the base
+      # hermes-agent image ships no docker client). Not on PATH by itself —
+      # bootstrap symlinks it into /usr/local/bin after the container is up
+      # (see docs/DOCKER_EXECUTION.md).
+      - docker-cli-bin:/opt/docker-cli:ro
+
+    networks:
+      - default
+      - docker-proxy-net
+
+    depends_on:
+      docker-cli-provisioner:
+        condition: service_completed_successfully
+      docker-socket-proxy:
+        condition: service_started
+
     # 2026-07-04: was /opt/data. Changed so every `docker exec` (and the
     # gateway daemon's own top-level process) starts inside the project
     # repo, not Hermes's data root — needed for ad-hoc `hermes chat`
@@ -150,3 +183,71 @@ services:
     working_dir: /workspace/${PROJECT_NAME:-project}
     stdin_open: true
     tty: true
+
+  # ---------------------------------------------------------------------
+  # DooD container execution (2026-07-04). See docs/DOCKER_EXECUTION.md for
+  # the full rationale — this is the "pipe to the host via a filtered
+  # socket proxy" option, not a raw socket mount and not privileged DinD.
+  # ---------------------------------------------------------------------
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: ${PROJECT_NAME:-eng-team}-docker-proxy
+    restart: unless-stopped
+    environment:
+      # Deny-by-default (every endpoint defaults to 0 in this image unless
+      # listed here). Only what the inner loop actually needs to build an
+      # image, run/inspect a compose stack, and tear it down again. Never
+      # add SWARM, NODES, SERVICES, PLUGINS, or SECRETS here — those widen
+      # the blast radius toward host/cluster takeover, and this template
+      # has no use for them.
+      - CONTAINERS=1
+      - IMAGES=1
+      - NETWORKS=1
+      - VOLUMES=1
+      - BUILD=1
+      - EXEC=1
+      - POST=1
+      - INFO=1
+      - PING=1
+      - VERSION=1
+    volumes:
+      # The one real socket mount in this whole setup — root-on-host-
+      # equivalent access — lives ONLY on this proxy container, read-only,
+      # and the proxy itself is unreachable from outside docker-proxy-net
+      # (no ports: published, network is internal:true below). hermes-agent
+      # never sees this path; it only ever talks to the proxy's filtered
+      # TCP endpoint (DOCKER_HOST above).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-proxy-net
+
+  docker-cli-provisioner:
+    # The base hermes-agent image ships no `docker` binary. Rather than
+    # forking/rebuilding that image just to add one, copy the CLI (+ the
+    # `docker compose`/buildx plugins) out of the official docker:cli image
+    # into a shared volume once, at compose-up time. Runs to completion and
+    # exits; hermes-agent waits on that exit via depends_on above.
+    image: docker:27-cli
+    container_name: ${PROJECT_NAME:-eng-team}-docker-cli-provisioner
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        mkdir -p /out/bin /out/cli-plugins &&
+        cp -f /usr/local/bin/docker /out/bin/docker &&
+        cp -f /usr/local/libexec/docker/cli-plugins/* /out/cli-plugins/ 2>/dev/null;
+        true
+    volumes:
+      - docker-cli-bin:/out
+    restart: "no"
+
+networks:
+  # internal:true — no route out to the host's other networks or the
+  # internet. hermes-agent reaches it only because it's also explicitly
+  # attached to this network (see its networks: block above); nothing else
+  # in this compose project or on the host can.
+  docker-proxy-net:
+    internal: true
+
+volumes:
+  docker-cli-bin:
