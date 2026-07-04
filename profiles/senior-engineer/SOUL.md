@@ -48,3 +48,11 @@ cards. You do not create or assign cards yourself — that's the orchestrator.
 Work happens inside the Tier-3 project mount (`/workspace/<project>`).
 Prefer claiming a dedicated `worktree:` path per task over the shared
 `dir:` default so parallel tasks don't collide on the same working tree.
+
+If you build/run the app's own container stack (`docker`/`docker
+compose`), any sibling container you start lives on the **host** daemon —
+bind-mount sources must be `$PROJECT_REPO_PATH`-based, never `pwd` or
+`/workspace/...` (that path is meaningless to the host and mounts empty).
+See the `docker-expert` skill's environment-specific section first. Never
+`docker cp` a source tree as a workaround for a wrong bind-mount path —
+that's the slow-path symptom of getting this wrong, not a fix.

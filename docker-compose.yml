@@ -159,12 +159,26 @@ services:
       # (see docs/DOCKER_EXECUTION.md).
       - docker-cli-bin:/opt/docker-cli:ro
 
+      # `gh` CLI (2026-07-04, see docs/MOUNTS.md's Tier 3 section for the
+      # incident this fixes). Same missing-binary problem as docker above —
+      # the base hermes-agent image ships no `gh` — solved the same way:
+      # gh-cli-provisioner below populates this shared read-only volume
+      # once at compose-up; bootstrap symlinks it into PATH and runs
+      # `gh auth login --with-token` / `gh auth setup-git` against
+      # GITHUB_TOKEN so plain `git push` and `gh pr create` work over
+      # HTTPS with no SSH key needed. (`git` itself already ships in the
+      # base image — confirmed live, /usr/bin/git 2.47.3 — only `gh` was
+      # missing.)
+      - gh-cli-bin:/opt/gh-cli:ro
+
     networks:
       - default
       - docker-proxy-net
 
     depends_on:
       docker-cli-provisioner:
+        condition: service_completed_successfully
+      gh-cli-provisioner:
         condition: service_completed_successfully
       docker-socket-proxy:
         condition: service_started
@@ -241,6 +255,31 @@ services:
       - docker-cli-bin:/out
     restart: "no"
 
+  gh-cli-provisioner:
+    # The base hermes-agent image ships no `gh` binary either (git itself
+    # is already present — confirmed live, /usr/bin/git 2.47.3). Same
+    # fix shape as docker-cli-provisioner above: download the pinned gh
+    # CLI release into a shared volume once, at compose-up time, instead
+    # of forking/rebuilding the base image.
+    image: alpine:3.20
+    container_name: ${PROJECT_NAME:-eng-team}-gh-cli-provisioner
+    environment:
+      - GH_CLI_VERSION=2.63.2
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        set -e &&
+        apk add --no-cache curl tar >/dev/null &&
+        case "$$(uname -m)" in x86_64) ARCH=amd64 ;; aarch64) ARCH=arm64 ;; *) echo "unsupported arch: $$(uname -m)" >&2; exit 1 ;; esac &&
+        curl -fsSL "https://github.com/cli/cli/releases/download/v$${GH_CLI_VERSION}/gh_$${GH_CLI_VERSION}_linux_$${ARCH}.tar.gz" -o /tmp/gh.tar.gz &&
+        mkdir -p /out/bin &&
+        tar -xzf /tmp/gh.tar.gz -C /tmp &&
+        cp -f "/tmp/gh_$${GH_CLI_VERSION}_linux_$${ARCH}/bin/gh" /out/bin/gh &&
+        chmod +x /out/bin/gh
+    volumes:
+      - gh-cli-bin:/out
+    restart: "no"
+
 networks:
   # internal:true — no route out to the host's other networks or the
   # internet. hermes-agent reaches it only because it's also explicitly
@@ -251,3 +290,4 @@ networks:
 
 volumes:
   docker-cli-bin:
+  gh-cli-bin:

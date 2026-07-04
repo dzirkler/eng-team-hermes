@@ -219,6 +219,51 @@ docker exec "$CONTAINER" sh -c \
   'for f in /opt/docker-cli/cli-plugins/*; do [ -e "$f" ] && ln -sf "$f" "/usr/local/libexec/docker/cli-plugins/$(basename "$f")"; done; true'
 
 # ---------------------------------------------------------------------
+# 3c. Git tree ownership fix (docs/MOUNTS.md, Tier 3 — real incident
+#     2026-07-04). Same UID-mismatch problem Tier 2 already had a fix for
+#     ("on Windows via Docker Desktop this is not reliably the
+#     container's hermes UID") also hits the bind-mounted project repo,
+#     which never got the equivalent fix: confirmed live, .git/objects/*
+#     subdirs land owned by uid 1000 while the container's hermes user is
+#     uid 10000, so hermes can read/list but not write new loose objects
+#     — `git commit` fails outright. chown the whole repo, not just
+#     .git/, since the working tree needs the same fix (index updates,
+#     checkouts, build artifacts). Idempotent, safe to re-run.
+# ---------------------------------------------------------------------
+echo "==> Fixing git tree ownership..."
+docker exec "$CONTAINER" chown -R hermes:hermes "/workspace/$PROJECT_NAME"
+
+# ---------------------------------------------------------------------
+# 3d. `gh` CLI (docs/MOUNTS.md, Tier 3 — same incident as 3c: the team
+#     also could not push/open a PR at all, because the base hermes-agent
+#     image ships no `gh` binary — same missing-binary problem `docker`
+#     had, fixed the same way in 3b). gh-cli-provisioner copied the
+#     binary into the gh-cli-bin volume, mounted read-only at
+#     /opt/gh-cli; symlink it into PATH, then run `gh auth setup-git` so
+#     plain `git push`/`git pull` over HTTPS work too — no SSH key
+#     needed. No `gh auth login` step: GITHUB_TOKEN is already a
+#     container-wide env var (for mcp_servers.github), and `gh` auto-auths
+#     from GITHUB_TOKEN/GH_TOKEN env vars on every invocation — confirmed
+#     live, `gh auth login --with-token` actually *errors* while that env
+#     var is set ("The value of the GITHUB_TOKEN environment variable is
+#     being used for authentication... first clear the value from the
+#     environment"), and is redundant anyway (`gh auth status` already
+#     shows "Logged in ... (GITHUB_TOKEN)" with no login step run at all).
+#     Skipped (with a warning, not a fatal error) if GITHUB_TOKEN is still
+#     the placeholder — same precedent as the other optional-credential
+#     warnings below. Idempotent: `gh auth setup-git` overwrites its own
+#     credential.helper entries.
+# ---------------------------------------------------------------------
+echo "==> Wiring up gh CLI..."
+docker exec "$CONTAINER" ln -sf /opt/gh-cli/bin/gh /usr/local/bin/gh
+if [[ "${env_values[GITHUB_TOKEN]}" == "replace-me" ]]; then
+  echo "    !! GITHUB_TOKEN not set — skipping 'gh auth setup-git'."
+  echo "       git push / gh pr create will fail until you set it and re-run bootstrap."
+else
+  docker exec "$CONTAINER" gh auth setup-git
+fi
+
+# ---------------------------------------------------------------------
 # 4. Create each worker profile (a real `hermes profile create`, not the
 #    invented `kanban worker-profile apply`). Idempotent: an existing
 #    profile errors with a message containing "already exists", which is

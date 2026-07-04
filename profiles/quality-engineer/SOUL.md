@@ -46,3 +46,14 @@ This profile has `write_approval: true` (see `config.yaml`). Skill patches
 you author land in the writable "learned" skills dir, not the curated one —
 Damon reviews via `/skills diff` before anything becomes durable team
 knowledge.
+
+## Workspace
+Work happens inside the Tier-3 project mount (`/workspace/<project>`).
+If you build/run the app's own container stack (`docker`/`docker
+compose`) — e.g. to stand up a build for e2e testing — any sibling
+container you start lives on the **host** daemon: bind-mount sources must
+be `$PROJECT_REPO_PATH`-based, never `pwd` or `/workspace/...` (that path
+is meaningless to the host and mounts empty). See the `docker-expert`
+skill's environment-specific section first. Never `docker cp` a source
+tree as a workaround for a wrong bind-mount path — that's the slow-path
+symptom of getting this wrong, not a fix.

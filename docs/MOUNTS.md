@@ -206,8 +206,54 @@ multiple tasks run concurrently.
 
 **Why bind-mount instead of a container-managed clone:** live host-side
 visibility (your editor, `git log`, `git diff` all see the same tree the
-agents are working in) plus no need for the container to hold its own git
-credentials for this repo.
+agents are working in). This does *not* mean the container never needs git
+credentials — see the push/PR note below; the "no credentials needed"
+claim only ever held for local commits.
+
+**Ownership (real incident, 2026-07-04): `git commit` failed with
+`.git/objects` read-only.** The senior-engineer profile hit this on a live
+run. Root cause, confirmed via `docker exec ... ls -la .git/objects`
+against a live container: loose-object subdirectories land owned by
+`uid 1000` (whatever UID Docker Desktop's bind-mount translation presents
+the host files as), while the container's `hermes` user is `uid 10000` —
+same class of problem Tier 2 already documents a fix for above ("this is
+not reliably the container's hermes UID"), just never applied to the
+Tier 3 project mount. `hermes` could read/list the tree but not create new
+objects. **Fix:** `bootstrap.sh`/`bootstrap.ps1` now run `docker exec ...
+chown -R hermes:hermes /workspace/$PROJECT_NAME` right after the container
+comes up (step 3c) — the whole tree, not just `.git/`, since the working
+tree needs the same fix (index updates, checkouts, build artifacts).
+Idempotent, safe to re-run.
+
+**Push/PR credentials (same incident): no `gh` binary, no working git
+auth.** The same run also couldn't `git push` or open a PR: `GITHUB_TOKEN`
+was set in `.env`, but it was only ever wired to `mcp_servers.github`
+(the API-based GitHub MCP server, `config/managed.yaml`) — never to git's
+own credential flow — and the base `hermes-agent` image ships no `gh`
+binary at all (`git` itself is present, confirmed live at `/usr/bin/git`
+2.47.3; only `gh` was missing). **Fix:** a `gh-cli-provisioner` sidecar in
+`docker-compose.yml` (same shape as `docker-cli-provisioner` — see
+`docs/DOCKER_EXECUTION.md`) downloads a pinned `gh` release into a shared
+read-only volume (`gh-cli-bin` → `/opt/gh-cli`); bootstrap (step 3d)
+symlinks it into `PATH`, then runs `gh auth setup-git`, which installs a
+git credential helper that shells out to `gh auth token` — so both `gh`
+itself and plain `git push`/`git pull` over HTTPS work with no SSH key.
+No separate `gh auth login` step: `GITHUB_TOKEN` is already a
+container-wide env var (for `mcp_servers.github`), and `gh` auto-auths
+from `GITHUB_TOKEN`/`GH_TOKEN` env vars on every invocation — confirmed
+live, `gh auth login --with-token` actually *errors* while that env var
+is set, and is redundant anyway (`gh auth status` already shows
+`Logged in ... (GITHUB_TOKEN)` with no login step run at all). Skipped
+(with a warning, not fatal) if `GITHUB_TOKEN` is still the `replace-me`
+placeholder.
+
+The GitHub MCP server (`mcp_servers.github`) is **not** a substitute for
+this: it's a GitHub-API-based tool (file-by-file content commits, PR
+create/list/merge via the API), not a way to push an arbitrary local git
+tree the team already built up as local commits — it doesn't see the
+container's working tree or its commit history at all. Keep both wired:
+MCP for issue/PR/label operations the profiles already do via API, real
+`git`/`gh` for anything that pushes the local commit graph.
 
 ## Tier 0 — provisioning, not a mount
 

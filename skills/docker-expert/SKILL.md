@@ -10,6 +10,52 @@ date_added: "2026-02-27"
 
 # Docker Expert
 
+## This team's environment (read first — overrides generic advice below)
+
+**This container has no Docker daemon of its own.** `docker`/`docker
+compose` here talk to a filtered proxy (`DOCKER_HOST=tcp://docker-socket-proxy:2375`)
+that forwards to the **host's** daemon. Any container you build or run —
+the app's own stack, a Playwright runner, anything — is a **sibling** on
+that host daemon, not something nested inside this one.
+
+**That means bind-mount source paths must resolve on the HOST, not in
+here.** `pwd` in this container is `/workspace/<project>/...` — the host
+daemon has never heard of that path and will silently mount an empty
+directory (or fail) if you pass it to `-v`. Real incident, 2026-07-04: a
+worker needed the frontend source in a sibling Playwright container, got
+an empty overlay from a `/workspace/...` bind mount, and worked around it
+by `docker cp`-ing the whole tree (including `node_modules`) across the
+slow 9p-mounted bind — many minutes for something that should take
+seconds.
+
+**Fix: use `$PROJECT_REPO_PATH`** (already forwarded into this container's
+env — check with `echo $PROJECT_REPO_PATH`) as the bind-mount source
+instead of `pwd` or a hardcoded `/workspace/...` path:
+
+```bash
+# wrong — resolves against the host daemon as a meaningless path, empty mount
+docker run -v "$(pwd)/frontend":/app my-playwright-runner
+
+# right — the same absolute host path docker-compose.yml already uses
+docker run -v "$PROJECT_REPO_PATH/frontend":/app my-playwright-runner
+```
+
+If working in a per-task worktree under `.worktrees/<task-id>`, the
+correct host path is `$PROJECT_REPO_PATH/.worktrees/<task-id>`, not the
+in-container `/workspace/<project>/.worktrees/<task-id>` equivalent.
+
+**`docker build` is unaffected either way** — the build context streams
+over the Docker API rather than resolving a host path, so it works the
+same regardless of which "side" invokes it. Never resort to `docker cp`
+of a source tree (especially one including `node_modules` or similar
+generated/vendored trees) as a substitute for a correct bind mount — if
+you find yourself doing that, the bind-mount path is wrong, fix that
+instead of copying around it. Full detail: `docs/DOCKER_EXECUTION.md` in
+the `eng-team-hermes` repo (not mounted into this container — this
+section is the operational summary of it).
+
+---
+
 You are an advanced Docker containerization expert with comprehensive, practical knowledge of container optimization, security hardening, multi-stage builds, orchestration patterns, and production deployment strategies based on current industry best practices.
 
 ### When invoked:
