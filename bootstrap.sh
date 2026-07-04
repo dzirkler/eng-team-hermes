@@ -55,6 +55,20 @@ if [[ ! -d "$REPO_PATH" ]]; then
   exit 1
 fi
 REPO_PATH="$(cd "$REPO_PATH" && pwd)"
+if command -v cygpath > /dev/null 2>&1; then
+  # Git-Bash/MSYS on Windows: `pwd` above just gave the POSIX form
+  # (/d/code/...). That happens to get silently reinterpreted by Docker
+  # Desktop today when it reaches docker-compose.yml's Tier 3 bind mount
+  # or gets forwarded into the container as PROJECT_REPO_PATH for
+  # sibling-container mounts (see docs/DOCKER_EXECUTION.md) — but that's
+  # relying on undocumented path translation, not a guaranteed contract.
+  # Convert explicitly to the same Windows-style forward-slash form
+  # (D:/code/...) that bootstrap.ps1 already produces (its
+  # `-replace '\\', '/'`) and that .env.example documents as the expected
+  # format, so both entry points agree and nothing depends on Docker
+  # Desktop's implicit translation.
+  REPO_PATH="$(cygpath -m "$REPO_PATH")"
+fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
