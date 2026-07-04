@@ -18,6 +18,12 @@ model:
   # load-bearing; see config/config.yaml for full rationale.
   base_url: https://litellm.home.zirkler.com/v1
 
+# Raised from the schema default of 90 — see profiles/orchestrator/config.yaml
+# for the full rationale (long-running cards were hitting "Iteration budget
+# exhausted (90/90)").
+agent:
+  max_turns: 300
+
 platform_toolsets:
   cli:
     - kanban

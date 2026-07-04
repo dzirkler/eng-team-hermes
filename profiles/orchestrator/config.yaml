@@ -68,6 +68,17 @@ model:
   # load-bearing; see config/config.yaml for full rationale.
   base_url: https://litellm.home.zirkler.com/v1
 
+# Per-profile override of the schema default (agent.max_turns: 90, hermes_cli/
+# config.py DEFAULT_CONFIG) — confirmed live 2026-07-03: a kanban worker task
+# failed with "Iteration budget exhausted (90/90)" on a long-running card.
+# 90 is the tool-calling-iteration cap PER TURN (not the same as a card's
+# goal_max_turns, which bounds a goal-mode worker's number of turns) and is
+# too tight for genuinely long implementation/debug/test loops. Raised
+# uniformly across all worker profiles rather than per-profile, since any
+# specialist can end up on a long card.
+agent:
+  max_turns: 300
+
 platform_toolsets:
   cli:
     - kanban
