@@ -18,6 +18,22 @@ container does **nothing** — you must re-run bootstrap.
 | `./skills/` | `/opt/curated-skills` (via `config.yaml` `skills.external_dirs`) | Hand-authored skills ported from `D:\code\eng-team-plugin\skills\` |
 | `./speckit/.claude/skills/` | `/opt/speckit-skills` (via `config.yaml` `skills.external_dirs`) | Generated, version-pinned `speckit-*` skills (see below) |
 | `./hooks/` | `/opt/hooks` | `no_merge_guard.js`, `no_write_guard.js` |
+| `./container-init/` | `/etc/cont-init.d/03-extra-cli-tools.sh` | s6-overlay boot hook — symlinks `docker`/`gh` onto `PATH` (see below) |
+
+`./container-init/03-extra-cli-tools.sh` is the one exception to "takes
+effect immediately" below — it's an **s6-overlay `cont-init.d` boot hook**,
+not something re-read per session. It runs once at container boot (root,
+before any user service starts, lexicographically after the image's own
+`01-hermes-setup`/`02-reconcile-profiles`), symlinking the docker/gh CLIs
+(populated into `/opt/docker-cli`/`/opt/gh-cli` by the provisioner sidecars
+— see Tier 3 below and `docs/DOCKER_EXECUTION.md`) onto `PATH`. Editing it
+requires a container recreate to take effect, same as any other
+`docker-compose.yml` change. It replaced an earlier approach (bootstrap
+symlinking these in via `docker exec` after the container came up) that
+worked right after bootstrap ran but was later found to have silently
+stopped working with no restart/recreate in between (see the Tier 3
+incident writeup) — doing it inside the container's own guaranteed boot
+sequence removes bootstrap's external timing as a variable entirely.
 
 These are real, live, read-only bind mounts (see `docker-compose.yml`).
 Editing a file here takes effect immediately — no restart needed for hooks
@@ -234,11 +250,15 @@ binary at all (`git` itself is present, confirmed live at `/usr/bin/git`
 2.47.3; only `gh` was missing). **Fix:** a `gh-cli-provisioner` sidecar in
 `docker-compose.yml` (same shape as `docker-cli-provisioner` — see
 `docs/DOCKER_EXECUTION.md`) downloads a pinned `gh` release into a shared
-read-only volume (`gh-cli-bin` → `/opt/gh-cli`); bootstrap (step 3d)
-symlinks it into `PATH`, then runs `gh auth setup-git`, which installs a
-git credential helper that shells out to `gh auth token` — so both `gh`
-itself and plain `git push`/`git pull` over HTTPS work with no SSH key.
-No separate `gh auth login` step: `GITHUB_TOKEN` is already a
+read-only volume (`gh-cli-bin` → `/opt/gh-cli`); `container-init/
+03-extra-cli-tools.sh` symlinks it into `PATH` at every container boot
+(see the Tier 1 table above — moved there 2026-07-05 after the bootstrap-
+time symlink was found to have silently stopped working with no
+restart/recreate in between). Bootstrap (step 3d) then runs
+`gh auth setup-git`, which installs a git credential helper that shells
+out to `gh auth token` — so both `gh` itself and plain `git push`/`git
+pull` over HTTPS work with no SSH key. No separate `gh auth login` step:
+`GITHUB_TOKEN` is already a
 container-wide env var (for `mcp_servers.github`), and `gh` auto-auths
 from `GITHUB_TOKEN`/`GH_TOKEN` env vars on every invocation — confirmed
 live, `gh auth login --with-token` actually *errors* while that env var

@@ -207,16 +207,21 @@ fi
 
 # ---------------------------------------------------------------------
 # 3b. DooD container execution (docs/DOCKER_EXECUTION.md): the docker CLI
-#     binary + compose/buildx plugins were copied into the docker-cli-bin
-#     volume by the docker-cli-provisioner service (compose already waited
-#     for it via depends_on), mounted read-only at /opt/docker-cli. Not on
-#     PATH by default, so symlink it into place — idempotent (ln -sf).
+#     binary + compose/buildx plugins are copied into the docker-cli-bin
+#     volume by the docker-cli-provisioner service (compose already waits
+#     for it via depends_on), mounted read-only at /opt/docker-cli.
+#
+#     2026-07-05: symlinking it onto PATH used to happen here, via
+#     `docker exec` after the container came up. Moved into
+#     container-init/03-extra-cli-tools.sh (an s6-overlay cont-init.d
+#     hook, runs at every container boot before user services start) —
+#     see that script's header for why: the symlinks bootstrap created
+#     here were later found missing with no restart/recreate in between,
+#     so provisioning is now part of the container's own guaranteed boot
+#     sequence instead of a one-shot external step bootstrap has to time
+#     correctly. Nothing left to do here; kept as a numbered step for the
+#     doc trail.
 # ---------------------------------------------------------------------
-echo "==> Wiring up docker CLI (DooD)..."
-docker exec "$CONTAINER" ln -sf /opt/docker-cli/bin/docker /usr/local/bin/docker
-docker exec "$CONTAINER" mkdir -p /usr/local/libexec/docker/cli-plugins
-docker exec "$CONTAINER" sh -c \
-  'for f in /opt/docker-cli/cli-plugins/*; do [ -e "$f" ] && ln -sf "$f" "/usr/local/libexec/docker/cli-plugins/$(basename "$f")"; done; true'
 
 # ---------------------------------------------------------------------
 # 3c. Git tree ownership fix (docs/MOUNTS.md, Tier 3 — real incident
@@ -237,25 +242,25 @@ docker exec "$CONTAINER" chown -R hermes:hermes "/workspace/$PROJECT_NAME"
 # 3d. `gh` CLI (docs/MOUNTS.md, Tier 3 — same incident as 3c: the team
 #     also could not push/open a PR at all, because the base hermes-agent
 #     image ships no `gh` binary — same missing-binary problem `docker`
-#     had, fixed the same way in 3b). gh-cli-provisioner copied the
-#     binary into the gh-cli-bin volume, mounted read-only at
-#     /opt/gh-cli; symlink it into PATH, then run `gh auth setup-git` so
-#     plain `git push`/`git pull` over HTTPS work too — no SSH key
-#     needed. No `gh auth login` step: GITHUB_TOKEN is already a
-#     container-wide env var (for mcp_servers.github), and `gh` auto-auths
-#     from GITHUB_TOKEN/GH_TOKEN env vars on every invocation — confirmed
-#     live, `gh auth login --with-token` actually *errors* while that env
-#     var is set ("The value of the GITHUB_TOKEN environment variable is
-#     being used for authentication... first clear the value from the
-#     environment"), and is redundant anyway (`gh auth status` already
-#     shows "Logged in ... (GITHUB_TOKEN)" with no login step run at all).
-#     Skipped (with a warning, not a fatal error) if GITHUB_TOKEN is still
-#     the placeholder — same precedent as the other optional-credential
-#     warnings below. Idempotent: `gh auth setup-git` overwrites its own
-#     credential.helper entries.
+#     had). gh-cli-provisioner copies the binary into the gh-cli-bin
+#     volume, mounted read-only at /opt/gh-cli; container-init/
+#     03-extra-cli-tools.sh symlinks it into PATH at every container
+#     boot (see 3b's note — same reason). Here we just run
+#     `gh auth setup-git` so plain `git push`/`git pull` over HTTPS work
+#     too — no SSH key needed. No `gh auth login` step: GITHUB_TOKEN is
+#     already a container-wide env var (for mcp_servers.github), and `gh`
+#     auto-auths from GITHUB_TOKEN/GH_TOKEN env vars on every invocation —
+#     confirmed live, `gh auth login --with-token` actually *errors*
+#     while that env var is set ("The value of the GITHUB_TOKEN
+#     environment variable is being used for authentication... first
+#     clear the value from the environment"), and is redundant anyway
+#     (`gh auth status` already shows "Logged in ... (GITHUB_TOKEN)" with
+#     no login step run at all). Skipped (with a warning, not a fatal
+#     error) if GITHUB_TOKEN is still the placeholder — same precedent as
+#     the other optional-credential warnings below. Idempotent:
+#     `gh auth setup-git` overwrites its own credential.helper entries.
 # ---------------------------------------------------------------------
 echo "==> Wiring up gh CLI..."
-docker exec "$CONTAINER" ln -sf /opt/gh-cli/bin/gh /usr/local/bin/gh
 if [[ "${env_values[GITHUB_TOKEN]}" == "replace-me" ]]; then
   echo "    !! GITHUB_TOKEN not set — skipping 'gh auth setup-git'."
   echo "       git push / gh pr create will fail until you set it and re-run bootstrap."

@@ -41,10 +41,15 @@ code tree so the stack runs where it can be seen and controlled directly.
   compose` command the team runs goes through the filtered proxy, never a
   raw socket.
 - The `docker-cli-bin` volume mounted read-only at `/opt/docker-cli`.
-  `bootstrap.sh`/`bootstrap.ps1` (step 3b) symlink
-  `/opt/docker-cli/bin/docker` → `/usr/local/bin/docker` and the CLI
-  plugins into `/usr/local/libexec/docker/cli-plugins/` after the container comes
-  up — idempotent, safe to re-run.
+  `container-init/03-extra-cli-tools.sh` (an s6-overlay `cont-init.d` boot
+  hook, bind-mounted read-only — see `docs/MOUNTS.md`'s Tier 1 table)
+  symlinks `/opt/docker-cli/bin/docker` → `/usr/local/bin/docker` and the
+  CLI plugins into `/usr/local/libexec/docker/cli-plugins/` at every
+  container boot, before any user service starts. (2026-07-05: moved here
+  from bootstrap's post-startup `docker exec` — the symlinks it created
+  were later found missing with no restart/recreate in between; running
+  this inside the container's own guaranteed boot sequence removes that
+  external timing dependency entirely.)
 - `PROJECT_REPO_PATH` forwarded as a real env var (see the path gotcha
   below).
 

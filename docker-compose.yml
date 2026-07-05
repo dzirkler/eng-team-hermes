@@ -155,21 +155,32 @@ services:
       # DooD container execution: read-only docker CLI + compose plugin
       # binary, populated once by docker-cli-provisioner below (the base
       # hermes-agent image ships no docker client). Not on PATH by itself —
-      # bootstrap symlinks it into /usr/local/bin after the container is up
-      # (see docs/DOCKER_EXECUTION.md).
+      # symlinked into /usr/local/bin at every container boot by
+      # container-init/03-extra-cli-tools.sh (see the mount below and
+      # docs/DOCKER_EXECUTION.md).
       - docker-cli-bin:/opt/docker-cli:ro
 
       # `gh` CLI (2026-07-04, see docs/MOUNTS.md's Tier 3 section for the
       # incident this fixes). Same missing-binary problem as docker above —
       # the base hermes-agent image ships no `gh` — solved the same way:
       # gh-cli-provisioner below populates this shared read-only volume
-      # once at compose-up; bootstrap symlinks it into PATH and runs
-      # `gh auth login --with-token` / `gh auth setup-git` against
-      # GITHUB_TOKEN so plain `git push` and `gh pr create` work over
+      # once at compose-up; symlinked into PATH by
+      # container-init/03-extra-cli-tools.sh. `gh auth setup-git`
+      # (bootstrap step 3d) then wires GITHUB_TOKEN into git's own
+      # credential flow so plain `git push` and `gh pr create` work over
       # HTTPS with no SSH key needed. (`git` itself already ships in the
       # base image — confirmed live, /usr/bin/git 2.47.3 — only `gh` was
       # missing.)
       - gh-cli-bin:/opt/gh-cli:ro
+
+      # 2026-07-05: symlinks docker/gh onto PATH at every container boot
+      # (s6-overlay cont-init.d, runs before user services start) instead
+      # of relying on bootstrap's external `docker exec` after the fact —
+      # see container-init/03-extra-cli-tools.sh's header for why (the
+      # symlinks were found missing later with no restart/recreate in
+      # between; this makes provisioning part of the container's own
+      # guaranteed boot sequence instead of a one-shot external step).
+      - ./container-init/03-extra-cli-tools.sh:/etc/cont-init.d/03-extra-cli-tools.sh:ro
 
     networks:
       - default
