@@ -191,9 +191,11 @@ what's parallel-safe (that was `speckit-tasks`' call). Map it:
   `qe`→`quality-engineer`); **`🔎 QE` review tasks → a `quality-engineer`
   verifier card** gated after the code card it reviews. The assignee also
   *selects the model tier* — there is no per-card model override; the LLM is
-  the assignee profile's `model.default` (`implementation-engineer`=GLM-4.7
-  cheap for well-scoped execution, `senior-engineer`=GLM-5.2 flagship for
-  ad-hoc/architecture). Route deliberately: cost/latency follow the assignee.
+  the assignee profile's `model.default` — both `implementation-engineer` and
+  `senior-engineer` run flagship GLM-5.2 (2026-07-04); the split is now
+  purely scope/stage (well-scoped, already-broken-down Implement work vs.
+  Plan/Tasks + ad-hoc/architecture), not a cost tier. Route deliberately:
+  latency/context still follow the assignee.
 - **`speckit-implement` force-loaded** on every engineer card.
 
 **Prefer parallelism — but at group/phase granularity, not one card per task.**

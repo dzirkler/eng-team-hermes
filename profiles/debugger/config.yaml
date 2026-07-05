@@ -52,7 +52,12 @@ model:
   # Flagship tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
   # was glm-5.1 (a stale id predating the model split decision), corrected
   # to the real flagship id used elsewhere in this repo.
-  default: glm-5.2
+  # reasoning_effort=max (2026-07-05, V3 reasoning-level pass) — root-cause
+  # hypothesis/test loops are the reasoning-heaviest role. Baked into the
+  # glm-5.2-coding-max model alias's own LiteLLM-side extra_body rather than
+  # agent.reasoning_effort — see profiles/senior-engineer/config.yaml for
+  # the full writeup on why (unresolved LiteLLM zai-provider bug).
+  default: glm-5.2-coding-max
   api_key_env: Z_AI_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.

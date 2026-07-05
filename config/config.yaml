@@ -34,8 +34,12 @@
 # ceiling belongs at LiteLLM (per-virtual-key RPM/budget), not here. This value
 # just keeps one team from thundering-herd on the proxy/container. 3 → up to
 # ~6 concurrent workers across your two teams; raise if the proxy + budget have
-# headroom, lower if you see 5h-window hard-stops mid-feature. The high-volume
-# Implement workers are GLM-4.7 (cheap tier), which stretches the budget.
+# headroom, lower if you see 5h-window hard-stops mid-feature. NOTE
+# (2026-07-04): implementation-engineer was raised from GLM-4.7 (cheap tier)
+# to flagship GLM-5.2 to match senior-engineer, so the high-volume Implement
+# workers no longer stretch the budget the way they used to — all engineer
+# traffic now draws from the same flagship pricing. Watch for 5h-window
+# hard-stops and lower this if the shared Coding Plan pool gets tight.
 max_concurrent_sessions: 3
 
 model:

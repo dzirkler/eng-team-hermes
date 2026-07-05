@@ -24,7 +24,29 @@ plugins:
 
 model:
   provider: zai
-  default: glm-5.2
+  # Reasoning-effort pinning (2026-07-05, V3 profile reasoning-level pass):
+  # `default` points at a per-profile LiteLLM virtual model
+  # (glm-5.2-coding-<level>) with `thinking`/`reasoning_effort` baked into a
+  # STATIC `extra_body` in that model's own litellm_params, not sent by
+  # Hermes per-request. This is deliberate, not stylistic: Hermes's zai
+  # provider still hits an unresolved upstream LiteLLM bug
+  # (github.com/BerriAI/litellm issue #19923, fix PR #31085 open/unmerged as
+  # of 2026-07-05) where `thinking`/`reasoning_effort` sent as top-level
+  # request params crash with "AsyncCompletions.create() got an unexpected
+  # keyword argument 'thinking'". Baking the level into the model alias
+  # sidesteps that path entirely (confirmed live via direct proxy calls and
+  # through this container's own `hermes chat`, both showing real
+  # `reasoning_content`/`reasoning_tokens`). Consequently `agent.reasoning_effort`
+  # must stay UNSET on every zai/GLM profile — setting it would make Hermes
+  # send its own conflicting top-level param and hit the crash again.
+  # senior-engineer -> glm-5.2-coding-max (thinking enabled, reasoning_effort
+  # max): Plan/Tasks, whole-repo architecture, ad-hoc fixes, swarm
+  # synthesizer — the deepest-reasoning role, paired with
+  # implementation-engineer's glm-5.2-coding-high as the "deep vs lean"
+  # engineer split (same model, different effort). See each profile's own
+  # config.yaml for its assigned level; this comment is the one full
+  # writeup.
+  default: glm-5.2-coding-max
   api_key_env: Z_AI_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.

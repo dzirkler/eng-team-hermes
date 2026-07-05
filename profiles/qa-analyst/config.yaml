@@ -24,7 +24,14 @@ model:
   # Cheap tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
   # was glm-5.2 (flagship), corrected: this profile's task is well-defined
   # (run the app, report pass/fail), fits comfortably in GLM-4.7's 200K.
-  default: glm-4.7
+  # thinking=on (2026-07-05, V3 reasoning-level pass) — GLM-4.7's forced
+  # interleaved thinking before every tool call aids stability for agentic
+  # Playwright validation. No reasoning_effort dial on 4.7 (5.2+ only).
+  # Baked into the glm-4.7-coding-on model alias's own LiteLLM-side
+  # extra_body rather than agent.reasoning_effort — see
+  # profiles/senior-engineer/config.yaml for the full writeup on why
+  # (unresolved LiteLLM zai-provider bug).
+  default: glm-4.7-coding-on
   api_key_env: Z_AI_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.

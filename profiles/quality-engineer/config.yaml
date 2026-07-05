@@ -21,10 +21,17 @@ plugins:
 
 model:
   provider: zai
-  # Cheap tier per docs/temp/V3-Supplement-Model-and-Key-Binding.md §5 —
-  # was glm-5.2 (flagship), corrected: test-writing/running tasks are
-  # well-scoped and fit comfortably in GLM-4.7's 200K.
-  default: glm-4.7
+  # Raised from cheap-tier GLM-4.7 back to flagship GLM-5.2 (2026-07-05, V3
+  # reasoning-level pass) — this profile is an accuracy gate/swarm verifier
+  # and should reason hard; on 4.7, thinking is forced-on with no effort
+  # dial, so 5.2 at reasoning_effort=max both reasons harder AND (per
+  # docs.z.ai) can be cheaper than 4.7's always-on thinking for
+  # mixed-difficulty batches, since 5.2's "enabled" auto-skips thinking on
+  # genuinely easy tasks. Baked into the glm-5.2-coding-max model alias's
+  # own LiteLLM-side extra_body rather than agent.reasoning_effort — see
+  # profiles/senior-engineer/config.yaml for the full writeup on why
+  # (unresolved LiteLLM zai-provider bug).
+  default: glm-5.2-coding-max
   api_key_env: Z_AI_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.

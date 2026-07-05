@@ -27,7 +27,14 @@ plugins:
 
 model:
   provider: zai
-  default: glm-5.2
+  # reasoning_effort=high (2026-07-05, V3 reasoning-level pass) — mostly
+  # spec authoring, structured but not the deepest reasoning role. Caveat:
+  # this profile also owns Analyze (SDD stage 7) — bump to max if it
+  # under-analyzes there. Baked into the glm-5.2-coding-high model alias's
+  # own LiteLLM-side extra_body rather than agent.reasoning_effort — see
+  # profiles/senior-engineer/config.yaml for the full writeup on why
+  # (unresolved LiteLLM zai-provider bug).
+  default: glm-5.2-coding-high
   api_key_env: Z_AI_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.

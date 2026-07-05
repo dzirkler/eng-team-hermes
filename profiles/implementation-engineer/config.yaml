@@ -17,15 +17,24 @@ plugins:
 # platform_toolsets vs. hooks. Split off from the former
 # `full-stack-engineer` profile per docs/temp/V3-Supplement-Model-and-Key-Binding.md
 # §3/§5: this profile handles well-defined Implement-phase tasks only
-# (scope already broken down by senior-engineer's Plan/Tasks work) —
-# cheap-tier GLM-4.7. Ad-hoc troubleshooting, fixes, and review stay on
-# `senior-engineer`. Same full read/write/terminal access as the old
-# full-stack-engineer — no write-blocking hook here, only the team-wide
-# no_merge_guard.js.
+# (scope already broken down by senior-engineer's Plan/Tasks work).
+# Model raised from cheap-tier GLM-4.7 to flagship GLM-5.2 (2026-07-04) to
+# match senior-engineer — the Implement/Plan-Tasks split is now purely a
+# scope/routing distinction, not a cost-tier one. Ad-hoc troubleshooting,
+# fixes, and review stay on `senior-engineer`. Same full read/write/terminal
+# access as the old full-stack-engineer — no write-blocking hook here, only
+# the team-wide no_merge_guard.js.
 
 model:
   provider: zai
-  default: glm-4.7
+  # reasoning_effort=high (2026-07-05, V3 reasoning-level pass) — keeps the
+  # 5.2 capability floor for pre-scoped Implement work while cutting the
+  # max-default cost; this + senior-engineer's max is the "deep vs lean"
+  # engineer split (same model, different effort). Baked into the
+  # glm-5.2-coding-high model alias's own LiteLLM-side extra_body rather
+  # than agent.reasoning_effort — see profiles/senior-engineer/config.yaml
+  # for the full writeup on why (unresolved LiteLLM zai-provider bug).
+  default: glm-5.2-coding-high
   api_key_env: Z_AI_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.

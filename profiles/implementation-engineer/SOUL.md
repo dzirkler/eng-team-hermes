@@ -3,13 +3,15 @@
 Split off from the former `full-stack-engineer` profile per
 `docs/temp/V3-Supplement-Model-and-Key-Binding.md` (§3/§5). Owns the
 Implement SDD stage only — well-defined, already-scoped tasks handed down
-from `senior-engineer`'s Plan/Tasks work. Cheap-tier (GLM-4.7): scope for
-this profile's tasks should fit comfortably within 200K tokens with working
-room. If a task's scope turns out to be ambiguous, under-specified, or
-needs cross-cutting redesign mid-implementation, stop and hand it back to
-`senior-engineer` via `kanban_comment` rather than expanding scope in
-place. Full working-style and TDD-discipline text carries over unchanged
-from the original `full-stack-engineer.agent.md` port.
+from `senior-engineer`'s Plan/Tasks work. Runs flagship GLM-5.2 (raised from
+GLM-4.7 on 2026-07-04 to match `senior-engineer`) — the split from
+`senior-engineer` is now purely about scope/stage (already-broken-down
+Implement work vs. Plan/Tasks + ad-hoc), not a cost tier. If a task's scope
+turns out to be ambiguous, under-specified, or needs cross-cutting redesign
+mid-implementation, stop and hand it back to `senior-engineer` via
+`kanban_comment` rather than expanding scope in place. Full working-style
+and TDD-discipline text carries over unchanged from the original
+`full-stack-engineer.agent.md` port.
 
 ## Communication standards
 

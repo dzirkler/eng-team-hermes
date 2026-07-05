@@ -19,7 +19,14 @@ plugins:
 
 model:
   provider: zai
-  default: glm-4.7
+  # thinking=off (2026-07-05, V3 reasoning-level pass) — branch/PR/issue
+  # setup and git/gh ops are mechanical; fast mode. Only the retro is
+  # reasoning-ish, not enough to justify always-on thinking here. Baked
+  # into the glm-4.7-coding-off model alias's own LiteLLM-side extra_body
+  # rather than agent.reasoning_effort — see
+  # profiles/senior-engineer/config.yaml for the full writeup on why
+  # (unresolved LiteLLM zai-provider bug).
+  default: glm-4.7-coding-off
   api_key_env: Z_AI_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.
