@@ -73,6 +73,23 @@ model:
   # alone.
   base_url: https://litellm.home.zirkler.com/v1
 
+# Dashboard theme/font (2026-07-05). Confirmed real — unlike `dashboard.bind`/
+# `port` above, these ARE genuine schema keys: `dashboard.theme` is in
+# DEFAULT_CONFIG with a `_SCHEMA_OVERRIDES` select list (hermes_cli/config.py,
+# hermes_cli/web_server.py) and `dashboard.font` is read/written by the
+# `/api/dashboard/font` endpoint the same way, confirmed by reading
+# web_server.py + web/src/themes/{presets,fonts}.ts directly inside the live
+# socialcampaignmanager-hermes container (this repo's own deployment). The
+# dashboard UI persists a user's in-session picks back into this same
+# config.yaml, but bootstrap.sh always overwrites state/data/config.yaml from
+# this file on every run (see its step 2 comment) — so this is genuinely the
+# default for every freshly-bootstrapped team, not a one-time seed that
+# drifts. "midnight" matches a built-in theme name and "work-sans" matches a
+# curated font id (web/src/themes/{presets,fonts}.ts) — both valid values.
+dashboard:
+  theme: midnight
+  font: work-sans
+
 kanban:
   dispatch_interval_seconds: 60
   # Board slug + default workspace are NOT config.yaml keys — they're set
