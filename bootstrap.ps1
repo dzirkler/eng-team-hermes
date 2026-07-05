@@ -229,6 +229,33 @@ if ($envValues["GITHUB_TOKEN"] -eq "replace-me") {
 }
 
 # ---------------------------------------------------------------------
+# 3e. Normalize an SSH-style origin remote to HTTPS (real incident
+#     2026-07-04, socialcampaignmanager senior-engineer - see [3d] above
+#     for the earlier half of this same incident). `gh auth setup-git`
+#     only wires its credential helper into `credential."https://
+#     github.com"` - it does nothing for a `git@github.com:...` or
+#     `ssh://git@...` remote, which is what a repo cloned via SSH still
+#     has. No SSH key is provisioned into these containers (deliberate -
+#     one shared GITHUB_TOKEN is much easier to operate than a per-project
+#     deploy key), so an SSH remote left in place means `git push` keeps
+#     failing with "Permission denied (publickey)" even after 3d has
+#     already fixed `gh`. Rewriting origin to the equivalent https:// URL
+#     is what actually lets the token from 3d authenticate pushes.
+#     Idempotent: no-ops once origin is already https://. Skipped (same
+#     GITHUB_TOKEN guard as 3d) since an HTTPS remote with no working
+#     credential helper is worse than leaving SSH in place - at least SSH
+#     fails the same obvious way it did before.
+# ---------------------------------------------------------------------
+if ($envValues["GITHUB_TOKEN"] -ne "replace-me") {
+    $originUrl = (docker exec $Container sh -c "cd /workspace/$ProjectName && git remote get-url origin" 2>$null)
+    if ($originUrl -match '^git@github\.com:(.+)$' -or $originUrl -match '^ssh://git@github\.com/(.+)$') {
+        $httpsUrl = "https://github.com/$($Matches[1])"
+        Write-Host "==> Normalizing origin remote to HTTPS (was $originUrl)..."
+        docker exec $Container sh -c "cd /workspace/$ProjectName && git remote set-url origin '$httpsUrl'"
+    }
+}
+
+# ---------------------------------------------------------------------
 # 4. Create each worker profile (a real `hermes profile create`, not the
 #    invented `kanban worker-profile apply`). Idempotent: an existing
 #    profile errors with a message containing "already exists", which is
