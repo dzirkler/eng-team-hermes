@@ -84,6 +84,18 @@ services:
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
       - MEMLORD_API_KEY=${MEMLORD_API_KEY}
 
+      # Discord gateway platform (2026-07-05). DISCORD_BOT_TOKEN's mere
+      # presence is what activates the plugin (confirmed live via plugin.yaml
+      # requires_env + adapter.py _get_enabled_platforms()) — no separate
+      # enabled flag. DISCORD_ALLOWED_USERS locks the bot to Damon's own
+      # Discord user ID; without it the bot would need
+      # DISCORD_ALLOW_ALL_USERS=true to answer anyone, which we don't want.
+      # DISCORD_HOME_CHANNEL is optional (catch-all for cron/notifications
+      # not tied to a specific thread's auto-subscription).
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_ALLOWED_USERS=${DISCORD_ALLOWED_USERS}
+      - DISCORD_HOME_CHANNEL=${DISCORD_HOME_CHANNEL}
+
       # DooD container execution (2026-07-04, see docs/DOCKER_EXECUTION.md).
       # Points the docker CLI (symlinked into PATH by bootstrap, step 3b) at
       # the deny-by-default socket proxy below instead of a raw socket

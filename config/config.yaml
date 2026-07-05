@@ -117,3 +117,30 @@ hooks:
   pre_tool_call:
     - command: /opt/hooks/no_merge_guard.js
       timeout: 10
+
+# Discord gateway platform (2026-07-05) — DISABLED for this (default/root)
+# profile. Corrected same day: DISCORD_BOT_TOKEN's presence auto-enables the
+# platform (plugin.yaml's requires_env), but that auto-enable is PER PROFILE
+# — this container runs one gateway process per profile (each profile is
+# its own s6-supervised `hermes -p <name> gateway run`, confirmed live via
+# `ps aux` + /etc/cont-init.d/02-reconcile-profiles), and every one of them
+# shares the same container-wide DISCORD_BOT_TOKEN env var. Left un-scoped,
+# BOTH this root/default profile's gateway AND the orchestrator's gateway
+# connected to Discord simultaneously and raced on the same inbound message
+# — duplicate thread-creation attempts, one hitting Discord's rate limit
+# ("Too many requests"), and the reply that did land came from this
+# personaless default profile instead of the orchestrator.
+#
+# gateway/config.py's PlatformConfig.enabled (populated via the top-level
+# `platforms:` key below, NOT the `discord:` behavior key — they're two
+# separate config surfaces, confirmed by reading GatewayConfig.from_dict +
+# _enable_from_env) is the actual per-profile on/off switch, and an explicit
+# `enabled: false` here is respected even with the token env var present
+# (_enable_from_env only auto-flips enabled=True when the YAML didn't set
+# it explicitly). The intended single Discord-facing surface is the
+# orchestrator profile — see profiles/orchestrator/config.yaml for the
+# `discord:` behavior block (auto_thread, require_mention, etc.) and its
+# explicit `platforms.discord.enabled: true`.
+platforms:
+  discord:
+    enabled: false

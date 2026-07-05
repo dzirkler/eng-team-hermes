@@ -146,3 +146,38 @@ hooks:
       timeout: 10
     - command: /opt/hooks/no_write_guard.js
       timeout: 10
+
+# Discord gateway platform (2026-07-05) — this is the ONE profile that
+# should be Discord-facing, per the single-point-of-contact design already
+# established above (specialists never reach Damon directly; orchestrator
+# is the only profile with kanban_block). See config/config.yaml's
+# `platforms.discord.enabled: false` for why every OTHER profile explicitly
+# opts out — DISCORD_BOT_TOKEN is a container-wide env var, and every
+# profile runs its own gateway process, so without an explicit per-profile
+# flag every one of them would try to connect as the same bot and race on
+# inbound messages (confirmed live: this exact collision happened between
+# this profile and the default/root one before the flag was added).
+#
+# `platforms.discord.enabled` (gateway/config.py's PlatformConfig) is a
+# separate config surface from the `discord:` behavior block below (which
+# feeds the plugin's own auto_thread/require_mention/etc. settings via
+# plugins/platforms/discord/adapter.py) — both are needed.
+platforms:
+  discord:
+    enabled: true
+
+discord:
+  require_mention: true          # only respond when @mentioned in a server channel
+  auto_thread: true              # new thread per @mention = new isolated session
+  thread_require_mention: false  # single-bot setup — no multi-bot ack-loop risk
+
+# Discord defaults to gateway/display_config.py's _TIER_HIGH (tool_progress:
+# "all"), which posts every tool call (e.g. "kanban_list...") as a visible
+# line — confirmed live 2026-07-05 after seeing exactly that breadcrumb in
+# a real response. Overridden per-platform here rather than globally so the
+# CLI (docker exec) keeps full tool visibility for debugging.
+display:
+  platforms:
+    discord:
+      tool_progress: off               # no tool-call breadcrumbs
+      interim_assistant_messages: true # keep mid-turn "let me check..." chatter

@@ -116,3 +116,16 @@ hooks:
 # per-profile "include every globally enabled MCP server" default on.
 mcp_servers:
   zread: {}
+
+# Discord gateway platform (2026-07-05) — explicitly disabled. Only
+# profiles/orchestrator/config.yaml should be Discord-facing (the team's
+# single-point-of-contact design — specialists never reach Damon directly).
+# DISCORD_BOT_TOKEN is a container-wide env var and every profile runs its
+# own gateway process, so without this override this profile would also
+# auto-connect to the same bot and race the orchestrator's connection on
+# every inbound message — confirmed live as the actual cause of a duplicate-
+# thread/rate-limit incident between the orchestrator and default profiles
+# before this flag existed. See config/config.yaml's matching note.
+platforms:
+  discord:
+    enabled: false
