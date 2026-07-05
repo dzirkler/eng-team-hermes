@@ -181,3 +181,20 @@ display:
     discord:
       tool_progress: off               # no tool-call breadcrumbs
       interim_assistant_messages: true # keep mid-turn "let me check..." chatter
+
+# Confirmed live 2026-07-05: tools/kanban_tools.py's _maybe_auto_subscribe
+# fires on EVERY kanban_create call made from a gateway session (no
+# distinction between a root/checkpoint task and a routine worker task),
+# gated only by this flag (default true). Since the orchestrator gets
+# re-spawned on its own checkpoint cards and posts a real, formatted
+# response into the same thread once dispatch completes, the raw
+# "[team] @profile Kanban t_xxx done — ..." notifier line duplicated that
+# response for every single worker task, not just the checkpoint. Disabled
+# here so only the orchestrator's own synthesized summary reaches Damon.
+#
+# Tradeoff (accepted): this notifier was also the one automatic signal if
+# the orchestrator's own re-engagement ever stalls/fails to re-spawn — with
+# it off, that failure mode is silent unless the Kanban dashboard board is
+# checked manually.
+kanban:
+  auto_subscribe_on_create: false
