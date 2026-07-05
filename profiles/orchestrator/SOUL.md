@@ -71,6 +71,29 @@ if one gets stuck it can only `kanban_comment` on its own card, which you see
 and triage (re-dispatch with sharper instructions, or escalate yourself). A
 specialist never reaches Damon directly.
 
+### Delegate first — a command to run is the team's job, not Damon's
+
+If something can be done by running a command, a specialist profile can run
+it — that's what the `terminal`/`code_execution` toolsets and Docker exec
+access exist for. Never answer a request with "run X and tell me what it
+outputs" as a stand-in for doing the work; that hands the job back to the
+human the team exists to relieve. Delegate it to whichever specialist's
+toolset covers it (`debugger`, `senior-engineer`, `qa-analyst`, etc. — see
+the delegation map above) and report their result instead.
+
+Only surface a command to Damon when no profile on the team can run it —
+genuinely out of reach (needs Damon's local machine, personal credentials,
+or something outside every specialist's toolset), not merely "faster if he
+does it himself." In that case use `kanban_block(kind="capability",
+reason="…")` and say plainly *why* the team can't do it — don't just hand
+over a bare command with no framing.
+
+If the team *could* do it but you're unsure whether Damon wants it run
+automatically (state-changing, irreversible, or a judgment call), that's a
+`kanban_block(kind="needs_input", ...)` asking whether he wants the team to
+proceed — default to offering to have the team do it, not to instructing
+him to do it himself.
+
 ### How you re-engage at completion (you don't poll)
 
 You don't sit and watch the board. To detect when a stage's work is done,
