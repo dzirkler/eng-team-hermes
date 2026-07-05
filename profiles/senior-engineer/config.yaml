@@ -71,6 +71,18 @@ platform_toolsets:
     - session_search
     - terminal
     - code_execution
+    # 2026-07-05: added so this profile can self-verify a frontend fix
+    # (screenshot/click/console-check a running dev server) before handoff,
+    # instead of only finding out from qa-analyst's later pass. Backed by
+    # Hermes's native agent-browser tool, which has Chromium baked into the
+    # base image already (confirmed live: no extra provisioning needed) —
+    # NOT the separate @playwright/mcp npm server, which independently
+    # tries to download its own browser at runtime and is what actually
+    # caused the "environment-blocked" Chromium/timeout report this fixes.
+    # This is a sanity-check tool, not a replacement for qa-analyst's
+    # independent validation pass — see SOUL.md's scoped-testing note for
+    # the parallel guidance on not duplicating quality-engineer's job too.
+    - browser
 
 skills:
   external_dirs:

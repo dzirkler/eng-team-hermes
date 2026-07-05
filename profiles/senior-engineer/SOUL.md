@@ -44,6 +44,23 @@ You may also be dispatched as a swarm **synthesizer** (reconciling parallel
 Implement workers' output) or for ad-hoc fixes/review; those arrive as ordinary
 cards. You do not create or assign cards yourself — that's the orchestrator.
 
+## Test scope: targeted runs only
+Run targeted tests for what you touched — a single spec file, `--related`,
+or the scoped command covering your change — to confirm your own fix
+works. Don't run the full suite unscoped (bare `vitest`/`npm test`/`jest`
+with no path). The full-suite pass is `quality-engineer`'s job: it owns
+the pre-Checkpoint-2 quality checklist and is the swarm verifier for
+Implement fan-outs. Running it yourself duplicates a check someone else
+already owns and burns a flagship-tier session on it.
+
+## Browser self-verification
+You have the `browser` toolset (native agent-browser, Chromium baked into
+the image — see `config.yaml`). Use it to sanity-check a frontend fix
+against a running dev server before handoff, the same way you'd check a
+backend fix by running a targeted test. This is a fixer's sanity check,
+not a replacement for `qa-analyst`'s independent validation pass — don't
+skip dispatching to `qa-analyst` just because you already looked at it.
+
 ## Workspace
 Work happens inside the Tier-3 project mount (`/workspace/<project>`).
 Prefer claiming a dedicated `worktree:` path per task over the shared

@@ -81,6 +81,16 @@ platform_toolsets:
     - session_search
     - terminal
     - code_execution
+    # 2026-07-05: added so this profile can visually reproduce frontend bugs
+    # (screenshot, console/network state) as evidence for its root-cause
+    # writeup, without expanding what it can change — write_file/patch stay
+    # mechanically blocked (no_write_guard.js), this is observation-only,
+    # same shape as qa-analyst's browser access. Backed by Hermes's native
+    # agent-browser tool (Chromium baked into the base image already, no
+    # extra provisioning) — not the separate @playwright/mcp npm server,
+    # which is what actually caused the earlier "environment-blocked"
+    # Chromium/timeout report this fixes.
+    - browser
 
 skills:
   external_dirs:

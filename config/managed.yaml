@@ -47,9 +47,18 @@ mcp_servers:
     url: https://api.z.ai/api/mcp/web_search_prime/mcp
     headers:
       Authorization: "Bearer ${Z_AI_API_KEY}"
-  playwright:
-    command: npx
-    args: ["-y", "@playwright/mcp@latest"]
+
+  # 2026-07-05: removed the `playwright` entry that used to live here
+  # (`npx -y @playwright/mcp@latest`) — this was a repo-wide footgun: any
+  # profile with a non-empty `mcp_servers` key (i.e. most of them, via the
+  # opt-in stub below each profile's own config.yaml) silently inherited
+  # it, regardless of whether that profile even has the `browser`
+  # toolset. Root-caused as the actual source of a reported "no Chromium
+  # binary, playwright install times out" failure: this server downloads
+  # its own browser at runtime, independent of (and redundant with) the
+  # `browser` toolset backed by Hermes's native agent-browser tool, which
+  # already has Chromium baked into the base image with zero extra
+  # provisioning (confirmed live). Use the `browser` toolset instead.
 
   # Ported 2026-07-03 from the global VS Code user-level MCP config
   # (C:\Users\damon\AppData\Roaming\Code\User\mcp.json), which is a

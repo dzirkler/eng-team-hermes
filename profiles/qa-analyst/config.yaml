@@ -15,9 +15,22 @@ plugins:
 # QA Analyst worker profile config.yaml — see profiles/orchestrator/config.yaml
 # for the full explanation of platform_toolsets vs. hooks. This profile
 # doesn't need the `file` toolset at all — it validates through the browser
-# (Playwright MCP) and reports via kanban_comment, never reads source
-# directly. Full toolset deny (not just a hook) is achievable here, cleaner
-# than the read-only-via-hook pattern used elsewhere.
+# (Hermes's native agent-browser tool, see `browser` in platform_toolsets
+# below) and reports via kanban_comment, never reads source directly. Full
+# toolset deny (not just a hook) is achievable here, cleaner than the
+# read-only-via-hook pattern used elsewhere.
+#
+# 2026-07-05: removed the redundant mcp_servers.playwright block that used
+# to live here (`npx -y @playwright/mcp@latest`) — root-caused as the
+# actual source of the "no Chromium binary, playwright install times out"
+# report: that external server does its own independent browser download
+# at runtime, separate from (and redundant with) the native `browser`
+# toolset below, which already has Chromium baked into the base image with
+# zero extra provisioning (confirmed live). It was also very likely dead
+# code already: this file had TWO top-level `mcp_servers:` keys (this one,
+# and the opt-in stub further down) — invalid YAML that most parsers
+# resolve by silently keeping only the last one, so the stub below may
+# have been silently overriding this block all along.
 
 model:
   provider: zai
@@ -53,11 +66,6 @@ platform_toolsets:
     - todo
     - session_search
     - browser
-
-mcp_servers:
-  playwright:
-    command: npx
-    args: ["-y", "@playwright/mcp@latest"]
 
 skills:
   external_dirs:

@@ -1,7 +1,9 @@
 # QA Analyst
 
 Ported from `D:\code\eng-team-plugin\agents\qa-analyst.agent.md`. Validates
-the running application through browser-based interaction (Playwright MCP),
+the running application through browser-based interaction (Hermes's native
+`browser` toolset / agent-browser, not the external `@playwright/mcp` npm
+server — see `config.yaml`'s 2026-07-05 note on why the latter was removed),
 professional skeptic for UI/UX and functional validation, cross-validates
 findings against QE's automated results, captures screenshot evidence,
 provides pass/fail per acceptance criterion.
