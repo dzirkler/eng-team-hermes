@@ -355,6 +355,48 @@ if ($envValues["GITHUB_TOKEN"] -eq "replace-me") {
 }
 
 # ---------------------------------------------------------------------
+# 5d. Blocked-card watchdog (2026-07-06) — a `hermes cron --no-agent` job,
+#     deliberately NOT LLM-driven. Real incident: independent-reviewer's
+#     worker crashed twice (Z.AI rate-limit, then a hard 401) without ever
+#     calling kanban_complete/kanban_block; the DISPATCHER's own
+#     give-up-after-repeated-failures safety net marked the card `blocked`.
+#     Nobody was subscribed (only checkpoint cards get notify-subscribe
+#     wired, and only when the orchestrator remembers to — confirmed
+#     unreliable even with concrete IDs baked into SOUL.md), and the
+#     orchestrator's own downstream checkpoint can never promote to notice,
+#     since it's parent-gated on the crashed card reaching `done`, which a
+#     `blocked` card never does. See scripts/blocked_card_watchdog.py for
+#     the full writeup — this catches every blocked-card cause uniformly
+#     (deliberate kanban_block, dispatcher crash-giveup, anything else)
+#     because all of them land on status=blocked regardless of cause, and
+#     it can't forget to run the way an LLM-driven instruction can.
+#
+#     Runs under the orchestrator profile (confirmed live: a plain
+#     `docker exec` with no HERMES_HOME override already resolves to
+#     orchestrator in this container, not the root/default profile).
+#     `--script` is resolved relative to that profile's own
+#     ~/.hermes/scripts/ — pass just the filename, not a `scripts/`-prefixed
+#     path (confirmed live: prepending `scripts/` yourself doubles it into
+#     `.../scripts/scripts/<file>` and the job fails "Script not found").
+#     Idempotent: `hermes cron create` does NOT dedupe by --name (each call
+#     makes a new job with a fresh id even with the same name) — checked
+#     for an existing job first, matching every other idempotent step here.
+# ---------------------------------------------------------------------
+Write-Host "==> Configuring blocked-card watchdog (hermes cron, no-agent)..."
+$watchdogScriptsDir = "state/data/profiles/orchestrator/scripts"
+New-Item -ItemType Directory -Force -Path $watchdogScriptsDir | Out-Null
+Copy-Item -Path "scripts/blocked_card_watchdog.py" -Destination "$watchdogScriptsDir/blocked_card_watchdog.py" -Force
+docker exec $Container chown hermes:hermes /opt/data/profiles/orchestrator/scripts/blocked_card_watchdog.py
+
+$existingCronJobs = docker exec --user hermes $Container hermes cron list 2>&1
+if ($existingCronJobs -match "blocked-card-watchdog") {
+    Write-Host "    - blocked-card-watchdog cron job already exists, skipping create"
+} else {
+    docker exec --user hermes $Container hermes cron create --script blocked_card_watchdog.py `
+        --no-agent --deliver discord --name blocked-card-watchdog "every 5m"
+}
+
+# ---------------------------------------------------------------------
 # 5b. Holographic memory: pre-create + pre-warm the shared "eng knowledge"
 #     store (see profiles/debugger/config.yaml for the full writeup) BEFORE
 #     any profile's session can touch it. Empirically confirmed 2026-07-04:

@@ -63,6 +63,26 @@ services:
       # virtual-key token tracking) instead of api.z.ai directly.
       - GLM_BASE_URL=${GLM_BASE_URL:-https://litellm.home.zirkler.com/v1}
       - HERMES_DASHBOARD=1
+      # Auto-accept shell hooks (2026-07-06). Every hooks/*.js file in this
+      # repo is a first-party, repo-authored guardrail (no_merge_guard,
+      # no_write_guard, no_kanban_escalation_guard, auto_subscribe_checkpoint)
+      # — never an untrusted/user-uploaded script — so there is no scenario
+      # where withholding consent is the safer default here. Without this,
+      # a hook's first real use requires either an interactive TTY consent
+      # prompt (this container has one allocated — stdin_open/tty below —
+      # but nothing is normally attached to answer it) or an explicit
+      # `--accept-hooks` flag the kanban dispatcher does not pass. Confirmed
+      # live 2026-07-06: a brand-new hook (auto_subscribe_checkpoint.js)
+      # silently failed to register on its first real invocation and had to
+      # be manually approved via `hermes chat --accept-hooks` — the exact
+      # "silently no-op instead of erroring" failure mode this whole session
+      # has been trying to eliminate. The other hooks already had incidental
+      # approvals recorded in each profile's shell-hooks-allowlist.json
+      # (likely from earlier interactive testing sessions) — this makes
+      # every future hook, on every profile, on a fresh deployment, work the
+      # same way deterministically instead of relying on that happening
+      # again by chance.
+      - HERMES_ACCEPT_HOOKS=1
       # Dashboard auth is MANDATORY as of the June 2026 hardening for any
       # non-loopback bind, and the dashboard binds 0.0.0.0 *inside* the
       # container by default (required for -p port publishing to reach it
@@ -111,6 +131,25 @@ services:
       # subpath of it) instead of pwd/`/workspace/...` in any bind mount
       # for a sibling container. See docs/DOCKER_EXECUTION.md.
       - PROJECT_REPO_PATH=${PROJECT_REPO_PATH}
+
+      # Extend the base image's write-safety allowlist to cover the project
+      # repo (2026-07-06). The base nousresearch/hermes-agent image ships
+      # HERMES_WRITE_SAFE_ROOT=/opt/data baked in (confirmed live via `docker
+      # inspect` — not set anywhere in this repo), which restricts the
+      # NATIVE write_file/patch tools (agent/file_safety.py's
+      # get_safe_write_roots()) to that one root. Real incident: product-manager
+      # (no terminal/code_execution — file toolset only) got "protected
+      # system/credential file" denied on EVERY path under
+      # /workspace/${PROJECT_NAME} while authoring SDD-021's spec artifacts,
+      # because the project repo is outside /opt/data. This never surfaced
+      # before because profiles with `terminal` typically edit code via shell,
+      # which this check doesn't cover at all — product-manager was the first
+      # profile to rely purely on native file writes into the project repo.
+      # get_safe_write_roots() supports multiple paths via os.pathsep (`:` on
+      # this Linux-based image); keep /opt/data first so Hermes's own
+      # credential/config safety net stays intact, just widened rather than
+      # replaced.
+      - HERMES_WRITE_SAFE_ROOT=/opt/data:/workspace/${PROJECT_NAME:-project}
 
     volumes:
       # ---------------------------------------------------------------

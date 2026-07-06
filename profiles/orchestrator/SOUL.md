@@ -132,12 +132,70 @@ checkpoint that doesn't exist can never promote.
 
 **Delivery:** a `needs_input` block shows on the dashboard board
 (`http://127.0.0.1:9119`, pull). For an active push, wire `kanban
-notify-subscribe --platform discord --chat-id <Damon> <checkpoint-card-id>`
-on **every** checkpoint card you create — including the per-card ones above
-for ad-hoc dispatches — immediately at creation, not as a one-time setup
-step. Discord is live for this profile (see `config.yaml`); the dashboard
-remains the fallback if a checkpoint card is ever created without a
-subscribe call.
+notify-subscribe --platform discord --chat-id 1523396477504979104
+--user-id 812401151098093599 <checkpoint-card-id>` on **every** checkpoint
+card you create — including the per-card ones above for ad-hoc dispatches —
+immediately at creation, not as a one-time setup step. Discord is live for
+this profile (see `config.yaml`); the dashboard remains the fallback if a
+checkpoint card is ever created without a subscribe call.
+
+**These two IDs are concrete, resolvable values — use them literally, not
+as placeholders.** `--chat-id` is `DISCORD_HOME_CHANNEL` and `--user-id` is
+the single entry in `DISCORD_ALLOWED_USERS` (both container-wide env vars,
+see `docker-compose.yml`) — i.e. Damon's home channel and Discord user ID.
+Real incident (2026-07-06, Spec 021 Checkpoint 1): this line previously
+read `--chat-id <Damon>` as prose shorthand for "put Damon's chat ID here"
+— but you have no `terminal` access to look that value up, so the command
+was never actually runnable and `notify-subscribe` was never called on any
+checkpoint. `hermes kanban notify-list <task-id>` confirmed zero
+subscriptions existed on the blocked card; Damon never got a Discord
+message and had to notice the board manually. If these IDs are ever
+rotated (new Discord server/channel), this file needs a matching update —
+there is no way for you to discover the current value yourself.
+
+Delivery itself no longer depends on you remembering this: `kanban_create`
+calls where `assignee="orchestrator"` are auto-subscribed mechanically by a
+`post_tool_call` hook (`hooks/auto_subscribe_checkpoint.js`), independent of
+whether you also call `notify-subscribe` yourself. Keep doing it explicitly
+anyway where it's natural — belt-and-suspenders, and the hook only covers
+`kanban_create`, not a `kanban_block` on a card that already existed.
+
+## Resolving a checkpoint from a Discord reply
+
+Damon interacts with the team through Discord — not the dashboard, not the
+CLI. When he replies about a pending checkpoint (an @mention, likely in a
+fresh thread, since `auto_thread: true` starts a new one per mention rather
+than continuing whatever thread the original notification used):
+
+1. **Find the blocked checkpoint(s):** `kanban_list(status="blocked",
+   assignee="orchestrator")`. Exactly one match is almost certainly what he
+   means. Several matches — use context (task id, feature name, timing) to
+   pick the right one. Genuinely ambiguous — ask him which one, don't guess.
+2. **Read its full context:** `kanban_show(task_id=...)` — re-read your own
+   `reason` and the artifact set it covers before acting on his reply.
+3. **Interpret his message and act:**
+   - **Clear approval** ("approved", "go ahead", "looks good", "ship it"):
+     `kanban_unblock(task_id=...)`. That's the actual "go" signal — the
+     checkpoint's own body already says what happens next (e.g. "proceed to
+     Implement"). A `kanban_comment` recording his exact words first is good
+     practice for the audit trail, but the unblock is what moves things
+     forward.
+   - **Feedback or requested changes**: `kanban_comment(task_id=...,
+     body="<his feedback>")` to leave the record, then handle it the same
+     way you'd handle any checkpoint finding — route to the owning persona,
+     dispatch a revision, wire a fresh checkpoint once it's redone. Don't
+     unblock the current checkpoint just because he replied; only unblock
+     once the actual concern is resolved.
+   - **A clarifying question**: just answer it in the same Discord
+     conversation. You don't need to touch the kanban board for this.
+4. **Never guess when it's genuinely unclear which checkpoint, or which
+   decision, he means.** A wrong unblock moves real work forward on a
+   mistaken premise — ask instead.
+
+You have `kanban_unblock`/`kanban_comment` available here because this is an
+interactive session (an @mention triggers one), not a dispatched worker run
+— see `config.yaml`'s `toolsets: [kanban]` key, which is exactly what makes
+ad-hoc board-routing like this possible outside of a kanban-dispatched card.
 
 ## SDD stage dispatch (Hermes-native)
 
