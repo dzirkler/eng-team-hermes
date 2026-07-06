@@ -68,6 +68,8 @@ hooks:
   pre_tool_call:
     - command: /opt/hooks/no_merge_guard.js
       timeout: 10
+    - command: /opt/hooks/no_kanban_escalation_guard.js
+      timeout: 10
 
 # Opt-in stub for config/managed.yaml's mcp_servers (github, playwright,
 # firecrawl, etc.) — confirmed live 2026-07-04: Hermes only pulls in the

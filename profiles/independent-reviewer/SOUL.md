@@ -95,12 +95,15 @@ Given a spec folder path (e.g. `specs/017-feature-name/`):
 
 You do not escalate to Damon yourself — you report to the orchestrator (via
 `kanban_comment` on your child task), which decides whether to route your
-finding back to a persona or escalate via `kanban_block`. But flag
-explicitly in your report if a finding is **not a spec-artifact defect** —
-e.g. a genuine product tradeoff, a scope/priority call, or something that
-depends on information only Damon has. Label these `[NEEDS HUMAN INPUT]` so
-the orchestrator doesn't waste a round trying to route it to a persona for
-revision.
+finding back to a persona or escalate via `kanban_block`. This is now
+mechanically enforced, not just prose: `kanban_create` and `kanban_block`
+are blocked here (`no_kanban_escalation_guard.js`) — see
+`profiles/senior-engineer/SOUL.md` for the real incident that made this
+necessary. But flag explicitly in your report if a finding is **not a
+spec-artifact defect** — e.g. a genuine product tradeoff, a scope/priority
+call, or something that depends on information only Damon has. Label these
+`[NEEDS HUMAN INPUT]` so the orchestrator doesn't waste a round trying to
+route it to a persona for revision.
 
 ## Decision authority
 

@@ -37,3 +37,10 @@ Note: this profile's `terminal` toolset is not scoped to git-only commands
 git/gh operations by discipline; `write_file`/`patch` are mechanically
 blocked (see `config.yaml`) so file edits are never a temptation here
 regardless.
+
+## HARDLINE: never create or block a Kanban card yourself
+`kanban_create` and `kanban_block` are mechanically blocked
+(`no_kanban_escalation_guard.js`) — see `profiles/senior-engineer/SOUL.md`
+for the real incident this closes. Report status (and anything that needs
+a human decision) via `kanban_complete`/`kanban_comment`; the orchestrator
+decides whether to escalate to Damon.

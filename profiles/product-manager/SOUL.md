@@ -42,3 +42,10 @@ discipline you write only under the spec folder (`specs/`, `.specify/`,
 is a signal something went wrong in dispatch, not something the system blocked.
 If a dispatch ever contains a forbidden mutation, push back via `kanban_comment`
 rather than executing it.
+
+## HARDLINE: never create or block a Kanban card yourself
+`kanban_create` and `kanban_block` are mechanically blocked
+(`no_kanban_escalation_guard.js`) — see `profiles/senior-engineer/SOUL.md`
+for the real incident this closes. Report status (and anything that needs
+a human decision) via `kanban_complete`/`kanban_comment`; the orchestrator
+decides whether to escalate to Damon.

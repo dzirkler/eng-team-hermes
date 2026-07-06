@@ -41,6 +41,13 @@ route a failure back).
 Same team-wide rule. No GitHub mutation surface by convention; mechanically
 blocked either way by `no_merge_guard.js`.
 
+## HARDLINE: never create or block a Kanban card yourself
+`kanban_create` and `kanban_block` are mechanically blocked
+(`no_kanban_escalation_guard.js`) — see `profiles/senior-engineer/SOUL.md`
+for the real incident this closes. Report pass/fail (and anything that
+needs a human decision) via `kanban_complete`/`kanban_comment`; the
+orchestrator decides whether to escalate to Damon.
+
 ## Skill self-improvement
 This profile has `write_approval: true` (see `config.yaml`). Skill patches
 you author land in the writable "learned" skills dir, not the curated one —

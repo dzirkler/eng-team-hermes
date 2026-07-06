@@ -293,6 +293,68 @@ foreach ($p in $ProfileNames) {
 docker exec $Container chown hermes:hermes /opt/data/config.yaml
 
 # ---------------------------------------------------------------------
+# 5c. Per-profile git/gh credentials for isolated HOME mode (2026-07-06).
+#     CONFIRMED against https://hermes-agent.nousresearch.com/docs/user-guide/profiles:
+#     this container's profiles run tool subprocesses with
+#     HOME={HERMES_HOME}/home (live-tested via an actual `hermes chat`
+#     session as senior-engineer — a plain `docker exec` shell is NOT
+#     representative of what a dispatched worker actually sees). Docs are
+#     explicit that isolated HOME requires MANUALLY initializing each
+#     profile's own {HERMES_HOME}/home/.gitconfig — step 3d's `gh auth
+#     setup-git` only ever wrote to the container's top-level home, which no
+#     dispatched worker actually runs under. This is the real, confirmed
+#     root cause of every "git pull/push has no GitHub creds" incident
+#     (PR #106 landing, and the socialcampaignmanager blocked-card incident,
+#     both 2026-07-05/06).
+#
+#     `terminal.env_passthrough: [GITHUB_TOKEN]` was tried first and does
+#     NOT work — confirmed by reading /opt/hermes/tools/env_passthrough.py +
+#     tools/environments/local.py inside a live container:
+#     GITHUB_TOKEN/GH_TOKEN are UNCONDITIONALLY blocklisted from passthrough
+#     (GHSA-rhgp-j443-p4rf hardening), because those same names double as
+#     hermes_cli/auth.py's api_key_env_vars for the built-in "copilot"
+#     inference provider — pure name collision, silently rejected (a
+#     warning log, not an error), which is why it looked fine at bootstrap
+#     time and only failed when actually exercised. See
+#     profiles/senior-engineer/config.yaml for the full writeup.
+#
+#     Real fix: `gh auth login --with-token`, run with HOME pointed at each
+#     profile's isolated home, PERSISTS gh's own auth state to
+#     {HERMES_HOME}/home/.config/gh/hosts.yml — so `gh auth git-credential`
+#     (invoked by git's credential.helper, wired by the `gh auth setup-git`
+#     call right after) can authenticate from that stored state with no
+#     live GITHUB_TOKEN env var needed in the sandboxed subprocess at all.
+#     `gh auth login --with-token` refuses to run while GITHUB_TOKEN/GH_TOKEN
+#     are already set in ITS OWN env ("first clear the value from the
+#     environment", same quirk noted in step 3d) — unset them for this one
+#     call. The token itself is piped over stdin (PowerShell pipeline into
+#     `docker exec -i`), never passed as a `-e VAR=value` / CLI argument —
+#     an argv-embedded secret would be visible in host process listings
+#     (Task Manager, `ps`, `docker inspect`) for the life of the process.
+#
+#     Only the profiles with a `terminal`/`code_execution` toolset need
+#     this — matches each profile's own config.yaml `terminal.home_mode:
+#     profile`. Idempotent: both `gh auth login --with-token` and `gh auth
+#     setup-git` overwrite their own state/credential.helper entries every
+#     run.
+# ---------------------------------------------------------------------
+Write-Host "==> Configuring per-profile git credentials (isolated HOME mode)..."
+$GitProfiles = @("senior-engineer", "implementation-engineer", "quality-engineer", "debugger", "project-manager")
+if ($envValues["GITHUB_TOKEN"] -eq "replace-me") {
+    Write-Host "    !! GITHUB_TOKEN not set - skipping per-profile git credential setup."
+} else {
+    foreach ($p in $GitProfiles) {
+        Write-Host "    - $p"
+        $profileHome = "/opt/data/profiles/$p/home"
+        docker exec $Container mkdir -p $profileHome
+        $envValues["GITHUB_TOKEN"] | docker exec -i -e HOME=$profileHome $Container `
+            sh -c 'unset GITHUB_TOKEN GH_TOKEN; gh auth login --hostname github.com --with-token'
+        docker exec -e HOME=$profileHome $Container gh auth setup-git
+        docker exec $Container chown -R hermes:hermes $profileHome
+    }
+}
+
+# ---------------------------------------------------------------------
 # 5b. Holographic memory: pre-create + pre-warm the shared "eng knowledge"
 #     store (see profiles/debugger/config.yaml for the full writeup) BEFORE
 #     any profile's session can touch it. Empirically confirmed 2026-07-04:

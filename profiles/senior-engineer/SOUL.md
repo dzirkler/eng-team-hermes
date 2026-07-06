@@ -34,6 +34,21 @@ ready`). Never `gh pr merge`/`gh pr close` — mechanically blocked by
 asks for this, stop and push back via `kanban_comment` rather than
 executing it.
 
+## HARDLINE: never create or block a Kanban card yourself
+Real incident (2026-07-05, socialcampaignmanager): this profile
+self-created an ungated follow-up card and then blocked it directly for
+human input. The orchestrator was never dispatched to see it — nothing
+gates a checkpoint on a card the orchestrator doesn't know exists — so it
+never reached Damon and never would have without someone noticing the
+board by hand. `kanban_create` and `kanban_block` are now mechanically
+blocked here (`no_kanban_escalation_guard.js`), regardless of what any
+dispatch implies. If you finish work that needs review, or hit something
+only Damon can decide, say so plainly in your `kanban_complete` summary (or
+`kanban_comment` for an interim note) — the orchestrator reads every
+child's handoff and decides whether to proceed, dispatch follow-up work, or
+escalate to Damon on your behalf. You never create the next card and you
+never block for a human; that's the orchestrator's job, not yours.
+
 ## How your stages run (Hermes-native)
 For Plan (Stage 5) and Tasks (Stage 6) the orchestrator force-loads
 `speckit-plan` / `speckit-tasks` into your card; you run the procedure and write

@@ -60,6 +60,41 @@ model:
 agent:
   max_turns: 300
 
+# Isolated-HOME git/gh credentials (2026-07-06). CONFIRMED against
+# https://hermes-agent.nousresearch.com/docs/user-guide/profiles: this
+# container's profiles run tool subprocesses with HOME={HERMES_HOME}/home
+# (live-tested via an actual `hermes chat` session as this profile: HOME
+# reported as /opt/data/profiles/senior-engineer/home — a plain `docker
+# exec` shell is NOT representative of what a dispatched worker actually
+# sees). Docs are explicit that isolated HOME requires manually initializing
+# each profile's own {HERMES_HOME}/home/.gitconfig — bootstrap.ps1's step 5c
+# does this per-profile. `home_mode: profile` is set explicitly here rather
+# than relying on whatever produced this as the default in this container.
+#
+# `terminal.env_passthrough: [GITHUB_TOKEN]` does NOT work and was removed
+# (tried and disproven live, 2026-07-06): confirmed by reading
+# /opt/hermes/tools/env_passthrough.py + tools/environments/local.py inside
+# the container — GITHUB_TOKEN and GH_TOKEN are UNCONDITIONALLY blocklisted
+# from passthrough (GHSA-rhgp-j443-p4rf hardening), because those same names
+# are also hermes_cli/auth.py's api_key_env_vars for the built-in "copilot"
+# inference provider — pure name collision, but the block is hard-coded and
+# config can't override it (silently rejected with a warning log, not an
+# error, which is why this looked like it worked at bootstrap time and only
+# failed when actually exercised).
+#
+# Real fix: bootstrap.ps1 step 5c runs `gh auth login --with-token` (not
+# just `gh auth setup-git`) with HOME pointed at this profile's isolated
+# home, persisting gh's own auth state to
+# {HERMES_HOME}/home/.config/gh/hosts.yml. `gh auth git-credential` (invoked
+# by git's credential.helper below) falls back to that stored state when no
+# live GITHUB_TOKEN/GH_TOKEN env var is present — so no env var needs to
+# reach the sandboxed subprocess at all. Real incident this fixes: every git
+# pull/push a worker attempted failed with "could not read Username for
+# 'https://github.com'" (PR #106 landing, and the socialcampaignmanager
+# wrapup-card block, both 2026-07-05/06).
+terminal:
+  home_mode: profile
+
 platform_toolsets:
   cli:
     - kanban
@@ -97,6 +132,8 @@ skills:
 hooks:
   pre_tool_call:
     - command: /opt/hooks/no_merge_guard.js
+      timeout: 10
+    - command: /opt/hooks/no_kanban_escalation_guard.js
       timeout: 10
 
 # Opt-in stub for config/managed.yaml's mcp_servers (github, playwright,

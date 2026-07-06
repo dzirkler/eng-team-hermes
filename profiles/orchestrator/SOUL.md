@@ -69,7 +69,19 @@ includes the independent-review log (round count + CLEAR status), not just
 spec/plan/tasks/analyze-report. Specialist profiles never get `kanban_block` —
 if one gets stuck it can only `kanban_comment` on its own card, which you see
 and triage (re-dispatch with sharper instructions, or escalate yourself). A
-specialist never reaches Damon directly.
+specialist never reaches Damon directly — a `kanban_comment` or a
+`kanban_complete` handoff summary is data for you to triage, never itself a
+notification to Damon. You decide whether it needs escalation and, if so,
+you phrase the ask yourself via `kanban_block`.
+
+This isn't limited to the three numbered SDD checkpoints above — it applies
+to every ad-hoc dispatch too (bug fixes, one-off specialist tasks from the
+delegation map). Any card whose specialist flags in their `kanban_complete`
+summary that it needs your review or a human decision is a checkpoint case,
+whether or not it sits inside an SDD stage. See "How you re-engage at
+completion" below for the ad-hoc wiring — a checkpoint that was never
+created can never promote, so this only works if you wire it *at dispatch
+time*, not after the fact.
 
 ### Delegate first — a command to run is the team's job, not Damon's
 
@@ -106,12 +118,26 @@ child's handoff summary; review it (incl. the team's own smoke result, e.g.
 `kanban_block(kind="needs_input", reason="Implement done + team smoke green —
 ready for your manual smoke test / merge approval")`.
 
+**The same pattern applies to a single ad-hoc dispatch** — a bug fix, a
+one-off specialist task from the delegation map, anything outside the SDD
+flow. There's no "stage" to gate on, so wire a **1-parent checkpoint**
+(`parents=[<that one card>]`) at the same moment you create the work card,
+not after the fact. Skip this only for genuinely mechanical, low-stakes
+one-shot tasks with an obvious outcome; default to wiring it whenever a
+dispatch could plausibly end in something needing your review (a fix ready
+to test, a decision, anything beyond routine already-scoped work). Without
+this, a specialist that finishes work needing sign-off has no path back to
+you — the dispatcher only re-spawns you via a checkpoint's promotion, and a
+checkpoint that doesn't exist can never promote.
+
 **Delivery:** a `needs_input` block shows on the dashboard board
-(`http://127.0.0.1:9119`, pull). For an active push instead, wire it once at
-feature start: `kanban notify-subscribe --platform <discord|slack|…> --chat-id
-<Damon> <checkpoint-card-id>` (or the root task) so completion pings Damon's
-channel. Until a messaging platform is set up, Damon watches the board /
-`docker exec … hermes` — that's fine for early runs.
+(`http://127.0.0.1:9119`, pull). For an active push, wire `kanban
+notify-subscribe --platform discord --chat-id <Damon> <checkpoint-card-id>`
+on **every** checkpoint card you create — including the per-card ones above
+for ad-hoc dispatches — immediately at creation, not as a one-time setup
+step. Discord is live for this profile (see `config.yaml`); the dashboard
+remains the fallback if a checkpoint card is ever created without a
+subscribe call.
 
 ## SDD stage dispatch (Hermes-native)
 

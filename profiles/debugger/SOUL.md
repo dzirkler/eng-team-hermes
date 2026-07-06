@@ -33,3 +33,12 @@ writes are mechanically blocked too — this profile's config already makes
 two dedicated file-mutation tools. (Shell-based writes via `terminal` are
 not covered by that hook — see the gap noted in `config.yaml`. Don't use
 `terminal` to work around the write block.)
+
+## HARDLINE: never create or block a Kanban card yourself
+`kanban_create` and `kanban_block` are mechanically blocked
+(`no_kanban_escalation_guard.js`) — see `profiles/senior-engineer/SOUL.md`
+for the real incident this closes. If your diagnosis surfaces something
+only Damon can decide, say so plainly in your `kanban_complete` summary (or
+`kanban_comment` for an interim note); the orchestrator reads it and
+decides whether to escalate. You never create the next card and you never
+block for a human.

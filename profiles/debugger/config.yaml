@@ -71,6 +71,18 @@ model:
 agent:
   max_turns: 300
 
+# Isolated-HOME git/gh credentials (2026-07-06) — see
+# profiles/senior-engineer/config.yaml for the full writeup, including why
+# `terminal.env_passthrough: [GITHUB_TOKEN]` does NOT work (unconditionally
+# blocklisted — GITHUB_TOKEN/GH_TOKEN collide with the built-in "copilot"
+# inference provider's own auth vars) and why bootstrap.ps1 step 5c's
+# `gh auth login --with-token` (persisted into this profile's isolated
+# home) is the real fix instead. This profile only reads (write_file/patch
+# mechanically blocked), but `git log`/`git diff`/`git blame` etc. for
+# root-cause work still need working credentials for a private remote.
+terminal:
+  home_mode: profile
+
 platform_toolsets:
   cli:
     - kanban
@@ -102,6 +114,8 @@ hooks:
     - command: /opt/hooks/no_merge_guard.js
       timeout: 10
     - command: /opt/hooks/no_write_guard.js
+      timeout: 10
+    - command: /opt/hooks/no_kanban_escalation_guard.js
       timeout: 10
 
 # Opt-in stub for config/managed.yaml's mcp_servers (github, playwright,
