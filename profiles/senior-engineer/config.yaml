@@ -47,7 +47,11 @@ model:
   # config.yaml for its assigned level; this comment is the one full
   # writeup.
   default: glm-5.2-coding-max
-  api_key_env: Z_AI_API_KEY
+  # CORRECTED 2026-07-06 (see config/config.yaml's model.api_key_env comment
+  # for the full incident writeup): was Z_AI_API_KEY on the assumption this
+  # field is decorative, but a real blocked-Kanban-card 401 on resume proved
+  # some resolution path does honor it. Set to GLM_API_KEY defensively.
+  api_key_env: GLM_API_KEY
   # Routed through the team's LiteLLM proxy (2026-07-03) for per-team
   # token tracking, not directly at Z.AI's Coding Plan endpoint anymore.
   # GLM_BASE_URL + GLM_API_KEY in docker-compose.yml are what's actually

@@ -47,19 +47,19 @@ model:
   # Confirmed real: "zai" is a canonical provider slug and "glm-5.2" is a
   # listed model id for it (hermes_cli/models.py PROVIDER_MODELS["zai"]).
   default: glm-5.2
-  # NOTE: this field is decorative for the built-in "zai" provider — Hermes
-  # NEVER reads model.api_key_env at runtime for it. Confirmed two ways:
-  # (1) reading hermes_cli/auth.py's resolve_api_key_provider_credentials(),
-  # which resolves the key purely from PROVIDER_REGISTRY["zai"]'s hardcoded
-  # api_key_env_vars tuple (GLM_API_KEY, ZAI_API_KEY, Z_AI_API_KEY, in that
-  # priority order) — this config value is never consulted; (2) a live test
-  # 2026-07-03: pointing this field at a nonexistent env var didn't break
-  # anything, the call still succeeded via Z_AI_API_KEY. The actual key in
-  # use is whichever of those three env vars is set container-wide (see
-  # docker-compose.yml) — currently GLM_API_KEY (checked first), holding
-  # the team's LiteLLM virtual key. Left as Z_AI_API_KEY here only so this
-  # file documents *a* valid value, not because Hermes reads it.
-  api_key_env: Z_AI_API_KEY
+  # CORRECTED 2026-07-06: the earlier "this field is decorative" note (see
+  # blocked_card_watchdog.py's incident writeup) was based on an incomplete
+  # test — pointing this at a NONEXISTENT env var (2026-07-03) still fell
+  # through to GLM_API_KEY via PROVIDER_REGISTRY["zai"]'s hardcoded priority
+  # order in the normal fresh-dispatch path, which was read as "ignored
+  # entirely." But two blocked Kanban cards then hit a real LiteLLM 401
+  # ("Virtual Key expected... Received=Z_AI_API_KEY's value") on resume
+  # after a rate-limit crash — meaning some path (crash-recovery/resume,
+  # not yet fully isolated) DOES honor a real-but-wrong api_key_env value
+  # instead of falling through. Set to GLM_API_KEY defensively so every
+  # resolution path — the documented priority-order one and whatever this
+  # other one is — lands on the correct LiteLLM virtual key.
+  api_key_env: GLM_API_KEY
   # Endpoint (2026-07-03): routed through the team's LiteLLM proxy for
   # per-team token-usage tracking via virtual keys, not directly at Z.AI's
   # Coding Plan endpoint anymore (see docs/temp/V3-Supplement-Model-and-Key-Binding.md

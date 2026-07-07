@@ -130,35 +130,41 @@ this, a specialist that finishes work needing sign-off has no path back to
 you — the dispatcher only re-spawns you via a checkpoint's promotion, and a
 checkpoint that doesn't exist can never promote.
 
-**Delivery:** a `needs_input` block shows on the dashboard board
-(`http://127.0.0.1:9119`, pull). For an active push, wire `kanban
-notify-subscribe --platform discord --chat-id 1523396477504979104
---user-id 812401151098093599 <checkpoint-card-id>` on **every** checkpoint
-card you create — including the per-card ones above for ad-hoc dispatches —
-immediately at creation, not as a one-time setup step. Discord is live for
-this profile (see `config.yaml`); the dashboard remains the fallback if a
-checkpoint card is ever created without a subscribe call.
+**Delivery is automatic — you don't need to remember a command.** Every
+`kanban_create` call where `assignee="orchestrator"` is auto-subscribed
+mechanically by a `post_tool_call` hook
+(`hooks/auto_subscribe_checkpoint.py`). The hook walks the new checkpoint's
+full `task_links` ancestry and subscribes to the **earliest real Discord
+thread found anywhere in that lineage** — i.e. the thread the feature's
+conversation actually started in — falling back to the bare
+`DISCORD_HOME_CHANNEL` catch-all only if no such thread exists anywhere in
+the ancestry (e.g. a feature that was never kicked off via Discord). See
+the hook's own docstring for the full incident history (two prior failure
+modes: `notify-subscribe` never being called at all, then being called
+with a hardcoded channel that landed messages outside the actual
+conversation thread).
 
-**These two IDs are concrete, resolvable values — use them literally, not
-as placeholders.** `--chat-id` is `DISCORD_HOME_CHANNEL` and `--user-id` is
-the single entry in `DISCORD_ALLOWED_USERS` (both container-wide env vars,
-see `docker-compose.yml`) — i.e. Damon's home channel and Discord user ID.
-Real incident (2026-07-06, Spec 021 Checkpoint 1): this line previously
-read `--chat-id <Damon>` as prose shorthand for "put Damon's chat ID here"
-— but you have no `terminal` access to look that value up, so the command
-was never actually runnable and `notify-subscribe` was never called on any
-checkpoint. `hermes kanban notify-list <task-id>` confirmed zero
-subscriptions existed on the blocked card; Damon never got a Discord
-message and had to notice the board manually. If these IDs are ever
-rotated (new Discord server/channel), this file needs a matching update —
-there is no way for you to discover the current value yourself.
+**This mechanism only works if the ancestry chain is unbroken.** The hook
+can't discover a thread it can't walk back to. Every card you create —
+not just the numbered SDD stage cards — needs `parents=[...]` pointing at
+whatever card produced the reason it exists, all the way back to wherever
+the chain currently ends. A card created without a `parents=` link is a
+dead end for this lookup: real incident (2026-07-07, Spec 022 Checkpoint 2
+Round 3) — the Stage 8 reconciliation loop's finding-routing and
+re-review re-dispatch cards were created with no `parents=`, so the chain
+snapped 2 hops before it could ever reach the feature's actual Discord
+thread, and the checkpoint silently fell back to the bare channel with no
+error. See Stage 8 below — this is now a hard requirement there, not just
+general good practice.
 
-Delivery itself no longer depends on you remembering this: `kanban_create`
-calls where `assignee="orchestrator"` are auto-subscribed mechanically by a
-`post_tool_call` hook (`hooks/auto_subscribe_checkpoint.js`), independent of
-whether you also call `notify-subscribe` yourself. Keep doing it explicitly
-anyway where it's natural — belt-and-suspenders, and the hook only covers
-`kanban_create`, not a `kanban_block` on a card that already existed.
+If you also want an explicit push alongside the automatic one, `kanban
+notify-subscribe --platform discord --chat-id <chat-id> --user-id
+812401151098093599 <checkpoint-card-id>` remains available, but prefer
+fixing a broken `parents=` chain over hardcoding a channel — a manual
+subscribe to `DISCORD_HOME_CHANNEL` (`1523396477504979104`) papers over
+the symptom (Damon gets *a* notification) without fixing the actual defect
+(it won't land in the thread he's in, and this hook won't get a second
+chance to fix it either, since it only fires once per `kanban_create`).
 
 ## Resolving a checkpoint from a Discord reply
 
@@ -325,6 +331,15 @@ ad-hoc manual review the human approver used to do by hand.
   `senior-engineer` for plan/tasks, `ux-designer` for design-brief), fan out
   in parallel if findings span artifacts → once revised, dispatch another
   fresh reviewer instance for the next round.
+- **Every card in this loop needs `parents=[...]`**, same as SDD stage
+  dispatch above — a finding-fix card's parent is the review/checkpoint
+  card that surfaced it; the next round's reviewer card's parent is
+  whichever fix card(s) it depends on. Skipping this breaks more than the
+  dependency gate: it's also what `hooks/auto_subscribe_checkpoint.py`
+  walks to find the feature's real Discord thread for Checkpoint 2's
+  delivery (see "Delivery" above) — an unlinked card here silently
+  degrades every checkpoint downstream of it to the fallback channel, with
+  no error to signal it happened.
 - **Terminate on**: sign-off (a round comes back CLEAR), or deadlock — the
   same finding unresolved/partially-resolved across 3 consecutive rounds, or
   a persona disagrees and the reviewer maintains the finding on re-review.
