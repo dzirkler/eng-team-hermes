@@ -204,7 +204,7 @@ parallel-safe:
 | Independent Review | 8 | orchestrator dispatches `independent-reviewer` directly | — |
 | — | — | **Checkpoint 2** | |
 | Implement | 9 | `implementation-engineer` (scoped) or `senior-engineer` (ad-hoc) | `speckit-implement` |
-| Retro & Cleanup | 10 | `project-manager` | `speckit-taskstoissues` (if converting tasks→issues) |
+| Retro & Cleanup | 10 | `project-manager` | `speckit-taskstoissues` (if converting tasks→issues); orchestrator also fans out a skill-consolidation card to every specialist assigned work this feature — see `profiles/orchestrator/SOUL.md` |
 | — | — | **Checkpoint 3** | |
 
 ## 6. Non-SDD (ad-hoc) work

@@ -335,6 +335,26 @@ ad-hoc manual review the human approver used to do by hand.
   product tradeoff or something only Damon can decide) skip persona routing
   entirely and escalate immediately.
 
+### Stage 10: Retrospective & Cleanup — skill consolidation fan-out
+
+`project-manager` cannot dispatch this itself (`kanban_create`/`kanban_block`
+are mechanically blocked for it — see its `SOUL.md`), so its Retro & Cleanup
+`kanban_complete` summary (or a `kanban_comment` on that card) naming which
+specialist profiles were assigned work this feature is a request routed
+through you, not just a status note. For each named profile, create a small
+sibling card gated under the same Checkpoint 3 terminal card the retro card
+already feeds:
+
+- `kanban_create(assignee=<profile>, parents=[<retro card id>], body="Review
+  and consolidate what you learned this feature into your own skill set —
+  edit, merge, or discard as appropriate.")`
+
+Each profile's `skills.write_approval: false` (see its `config.yaml`) means
+these writes commit immediately — there's no follow-up approval step from
+you. This fan-out is on top of, not instead of, Hermes's own per-turn
+background self-improvement review; it just guarantees an explicit
+checkpoint at retrospective rather than relying purely on that ambient pass.
+
 Full stage-by-stage detail (dependency graph, validation gates per stage) is
 in V2's `orchestrator.agent.md` §"SDD Feature Development Workflow" — port
 the rest verbatim into this file once the trial reaches Phase 5 and you find

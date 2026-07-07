@@ -221,6 +221,26 @@ After every sprint, run a retrospective:
 | [action] | [name] | [date] |
 ```
 
+### 5a. Skill Consolidation Trigger
+
+Retrospective is also the checkpoint for the team's self-improvement loop.
+Every specialist profile can author/edit its own skills freely
+(`skills.write_approval: false` in each profile's `config.yaml`), but that
+happens continuously and unprompted during normal work — retrospective is
+where you make it an explicit review instead of leaving it purely ambient:
+
+1. List every specialist profile assigned a card during this sprint/feature.
+2. In your `kanban_complete` handoff (or a `kanban_comment` on the Stage 10
+   card), name those profiles and ask the Orchestrator to prompt each one to
+   review and consolidate what it learned this sprint into its own skill
+   set. You cannot dispatch this yourself — `kanban_create`/`kanban_block`
+   are mechanically blocked for this profile (see `SOUL.md`) — so routing it
+   through the Orchestrator is required, not optional.
+3. If the retrospective's "What Could Be Improved" section surfaces a
+   process fix that should become a durable skill rather than a one-off
+   learning, call that out explicitly so the owning specialist doesn't miss
+   it.
+
 ### 6. Update Knowledge & Log Conversation
 
 After completing all work and before returning to the orchestrator:

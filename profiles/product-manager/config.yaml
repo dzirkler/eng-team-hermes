@@ -68,7 +68,10 @@ skills:
     # profile owns Constitution/Specify/Clarify/Analyze → speckit-constitution,
     # speckit-specify, speckit-clarify, speckit-analyze.
     - /opt/speckit-skills
-  write_approval: true
+  # Agent-authored (Tier 2) skill writes commit immediately — no human
+  # approval gate. Scoped only to this profile's own writable skills dir;
+  # the curated/speckit external_dirs above stay read-only regardless.
+  write_approval: false
 
 # NOTE: no_write_guard.js was REMOVED here (2026-07-03). In the Hermes-native
 # model the orchestrator force-loads speckit-constitution/specify/clarify/

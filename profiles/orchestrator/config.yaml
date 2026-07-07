@@ -138,7 +138,10 @@ toolsets:
 skills:
   external_dirs:
     - /opt/curated-skills
-  write_approval: true
+  # Agent-authored (Tier 2) skill writes commit immediately — no human
+  # approval gate. Scoped only to this profile's own writable skills dir;
+  # the curated external_dirs above stay read-only regardless.
+  write_approval: false
 
 hooks:
   pre_tool_call:
@@ -146,16 +149,19 @@ hooks:
       timeout: 10
     - command: /opt/hooks/no_write_guard.js
       timeout: 10
-  # Root-cause fix (2026-07-06): makes checkpoint Discord delivery
+  # Root-cause fix (2026-07-06/07): makes checkpoint Discord delivery
   # mechanical instead of relying on the orchestrator's own
   # notify-subscribe call, which failed 2/2 times even with concrete IDs
-  # baked into SOUL.md. See hooks/auto_subscribe_checkpoint.js for the full
+  # baked into SOUL.md. Rewritten in Python (2026-07-07) to also trace each
+  # checkpoint's ancestry back to whichever Discord thread the feature's
+  # conversation actually started in, instead of always falling back to the
+  # bare home channel — see hooks/auto_subscribe_checkpoint.py for the full
   # writeup. matcher scopes this to only fire on kanban_create (matcher
   # does a fullmatch against tool_name, confirmed in agent/shell_hooks.py).
   post_tool_call:
-    - command: /opt/hooks/auto_subscribe_checkpoint.js
+    - command: /opt/hooks/auto_subscribe_checkpoint.py
       matcher: "kanban_create"
-      timeout: 10
+      timeout: 15
 
 # Discord gateway platform (2026-07-05) — this is the ONE profile that
 # should be Discord-facing, per the single-point-of-contact design already

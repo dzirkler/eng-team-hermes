@@ -127,7 +127,10 @@ skills:
     # Plan/Tasks (+ ad-hoc implement/review) → speckit-plan, speckit-tasks,
     # speckit-implement.
     - /opt/speckit-skills
-  write_approval: true
+  # Agent-authored (Tier 2) skill writes commit immediately — no human
+  # approval gate. Scoped only to this profile's own writable skills dir;
+  # the curated/speckit external_dirs above stay read-only regardless.
+  write_approval: false
 
 hooks:
   pre_tool_call:

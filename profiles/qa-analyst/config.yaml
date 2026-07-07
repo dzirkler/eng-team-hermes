@@ -70,7 +70,10 @@ platform_toolsets:
 skills:
   external_dirs:
     - /opt/curated-skills
-  write_approval: true
+  # Agent-authored (Tier 2) skill writes commit immediately — no human
+  # approval gate. Scoped only to this profile's own writable skills dir;
+  # the curated external_dirs above stay read-only regardless.
+  write_approval: false
 
 hooks:
   pre_tool_call:
