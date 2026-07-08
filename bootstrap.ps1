@@ -381,6 +381,17 @@ if ($envValues["GITHUB_TOKEN"] -eq "replace-me") {
 #     Idempotent: `hermes cron create` does NOT dedupe by --name (each call
 #     makes a new job with a fresh id even with the same name) — checked
 #     for an existing job first, matching every other idempotent step here.
+#
+#     --deliver local (2026-07-08, was `discord`): `--deliver discord` is a
+#     single static target baked in at registration time, so every alert
+#     landed in the fixed home channel regardless of which feature/thread
+#     the human was actually discussing it in — confirmed live against a
+#     real checkpoint (t_c41cd839) that should have landed in-thread. The
+#     script now resolves each blocked card's own thread (same ancestry
+#     walk as auto_subscribe_checkpoint.py) and delivers via `hermes send`
+#     itself; `--deliver local` just keeps stdout in the job's own output
+#     log for audit/debugging without ALSO forwarding a duplicate to the
+#     home channel.
 # ---------------------------------------------------------------------
 Write-Host "==> Configuring blocked-card watchdog (hermes cron, no-agent)..."
 $watchdogScriptsDir = "state/data/profiles/orchestrator/scripts"
@@ -393,7 +404,7 @@ if ($existingCronJobs -match "blocked-card-watchdog") {
     Write-Host "    - blocked-card-watchdog cron job already exists, skipping create"
 } else {
     docker exec --user hermes $Container hermes cron create --script blocked_card_watchdog.py `
-        --no-agent --deliver discord --name blocked-card-watchdog "every 5m"
+        --no-agent --deliver local --name blocked-card-watchdog "every 5m"
 }
 
 # ---------------------------------------------------------------------

@@ -25,27 +25,121 @@ directly in Discord.
 
 Registered as:
   hermes cron create --script blocked_card_watchdog.py --no-agent \
-    --deliver discord --name blocked-card-watchdog "every 5m"
+    --deliver local --name blocked-card-watchdog "every 5m"
 
-`--no-agent` means Hermes runs this script directly and delivers its stdout
-verbatim — no LLM turn, no tool-calling loop, zero added cost per tick.
-Empty stdout = cron delivers nothing (documented contract), so this only
-speaks up when there's a genuinely NEW, human-relevant blocked card since
-the last tick.
+`--no-agent` means Hermes runs this script directly. `--deliver local` keeps
+stdout in the cron job's own output log (for audit/debugging) WITHOUT also
+forwarding it to a platform — this script does its own platform delivery
+below, per blocked card, so it can route each alert into the right Discord
+thread instead of cron's single static delivery target.
+
+Root-cause fix (2026-07-08): this watchdog was originally registered with
+`--deliver discord` (bare, no chat_id/thread_id). That's a single static
+target baked into the cron job at registration time — it can't vary per
+alert, so EVERY blocked-card alert landed in the fixed home channel no
+matter which feature/thread the human was actually discussing it in. This
+defeated the thread-aware notify-subscribe fix (auto_subscribe_checkpoint.py)
+entirely, since this watchdog fires independently of — and typically faster
+than — that subscription path, and is the one that actually wins the race
+to Discord. Confirmed live: checkpoint t_c41cd839 ([Spec 022] Checkpoint 3
+final) had zero rows in kanban_notify_subs (its owning session's hook
+registration was stale, see auto_subscribe_checkpoint.py), yet this
+watchdog delivered the full checkpoint text to the home channel at
+2026-07-08 00:21:44 regardless — bypassing threading altogether by design,
+not just as a side-effect of the stale-hook bug.
+
+Fix: reuse auto_subscribe_checkpoint.py's ancestry-walk (earliest Discord
+thread found anywhere in a blocked task's kanban parent chain) and deliver
+each alert directly via `hermes send -t discord:<chat_id>:<thread_id>`,
+falling back to the bare home channel only when no thread exists anywhere
+in that task's lineage.
 """
 from __future__ import annotations
 
 import json
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
 STATE_FILE = Path(__file__).parent / ".blocked-alert-state.json"
 
+# Same DBs auto_subscribe_checkpoint.py reads — this script also runs under
+# the orchestrator profile (see bootstrap.ps1's registration comment).
+KANBAN_DB = "/opt/data/kanban/boards/socialcampaignmanager/kanban.db"
+SESSION_DB = "/opt/data/profiles/orchestrator/state.db"
+
 # kind="dependency" blocks are routine "waiting on parents" state, not a
 # human decision point (per docs/ARCHITECTURE-OVERVIEW.md — only
 # needs_input/capability reach a human). Don't page Damon for these.
 SILENT_BLOCK_KINDS = {"dependency"}
+
+
+def find_feature_thread(task_id: str) -> tuple[str, str] | None:
+    """Return (chat_id, thread_id) of the earliest Discord session anywhere
+    in task_id's ancestry, or None if this feature never touched Discord.
+
+    Duplicated from auto_subscribe_checkpoint.py rather than imported: hooks
+    and cron scripts are deployed to separate directories in the container
+    (/opt/hooks/ vs each profile's ~/.hermes/scripts/), so there's no shared
+    import path between them — see that file's module docstring for the
+    full root-cause writeup of why ancestry (not just the task's own
+    session) has to be walked.
+    """
+    try:
+        kconn = sqlite3.connect(KANBAN_DB)
+        rows = kconn.execute(
+            """
+            WITH RECURSIVE ancestors(id) AS (
+                SELECT ?
+                UNION
+                SELECT tl.parent_id FROM task_links tl
+                JOIN ancestors a ON tl.child_id = a.id
+            )
+            SELECT DISTINCT t.session_id FROM ancestors a
+            JOIN tasks t ON t.id = a.id
+            WHERE t.session_id IS NOT NULL
+            """,
+            (task_id,),
+        ).fetchall()
+        session_ids = [r[0] for r in rows]
+        if not session_ids:
+            return None
+
+        sconn = sqlite3.connect(SESSION_DB)
+        placeholders = ",".join("?" * len(session_ids))
+        match = sconn.execute(
+            f"""
+            SELECT chat_id, thread_id FROM sessions
+            WHERE id IN ({placeholders})
+              AND source = 'discord'
+              AND thread_id IS NOT NULL AND thread_id != ''
+            ORDER BY started_at ASC LIMIT 1
+            """,
+            session_ids,
+        ).fetchone()
+        return (match[0], match[1]) if match else None
+    except Exception as e:
+        print(f"blocked_card_watchdog: thread lookup failed: {e}", file=sys.stderr)
+        return None
+
+
+def deliver_target(task_id: str) -> str:
+    thread = find_feature_thread(task_id)
+    if thread:
+        chat_id, thread_id = thread
+        return f"discord:{chat_id}:{thread_id}"
+    return "discord"
+
+
+def send(target: str, text: str) -> None:
+    try:
+        subprocess.run(
+            ["hermes", "send", "--to", target, "--quiet", text],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15,
+        )
+    except Exception as e:
+        print(f"blocked_card_watchdog: delivery to {target} failed: {e}", file=sys.stderr)
 
 
 def load_previously_alerted() -> set[str]:
@@ -110,21 +204,35 @@ def main() -> int:
     previously_alerted = load_previously_alerted()
     new_ids = current_ids - previously_alerted
 
-    alert_lines: list[str] = []
+    # Group by resolved delivery target rather than one flat digest: each
+    # new blocked card can belong to a different feature/thread, and cron's
+    # own --deliver is a single static target set at job-registration time
+    # — it can't route per-alert, so this script sends each group directly.
+    lines_by_target: dict[str, list[str]] = {}
     for t in blocked:
         if t["id"] not in new_ids:
             continue
         kind, reason = describe_block(t["id"])
         if kind in SILENT_BLOCK_KINDS:
             continue
-        alert_lines.append(f"⚠️ {t['id']}  @{t['assignee']}  {t['title']}")
+        lines = lines_by_target.setdefault(deliver_target(t["id"]), [])
+        lines.append(f"⚠️ {t['id']}  @{t['assignee']}  {t['title']}")
         if reason:
-            alert_lines.append(f"   {reason}")
+            lines.append(f"   {reason}")
         else:
-            alert_lines.append("   (no reason found — check `hermes kanban log <id>`)")
+            lines.append("   (no reason found — check `hermes kanban log <id>`)")
 
-    if alert_lines:
-        print("New blocked Kanban card(s) — needs your attention:\n" + "\n".join(alert_lines))
+    all_lines: list[str] = []
+    for target, lines in lines_by_target.items():
+        text = "New blocked Kanban card(s) — needs your attention:\n" + "\n".join(lines)
+        send(target, text)
+        all_lines.extend(lines)
+
+    if all_lines:
+        # Kept for the cron job's own local output log (--deliver local) —
+        # not forwarded anywhere; the send() calls above already delivered
+        # each group to its actual thread-aware target.
+        print("New blocked Kanban card(s) — needs your attention:\n" + "\n".join(all_lines))
 
     # Drop cleared cards from state (so a future re-block on the same id
     # alerts again) but keep everything still blocked (so it isn't
