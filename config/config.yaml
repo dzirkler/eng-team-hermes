@@ -96,6 +96,22 @@ kanban:
   # imperatively via `hermes kanban boards create/switch/set-default-workdir`,
   # which bootstrap.ps1/.sh run on every invocation (idempotent).
 
+  # Added 2026-07-07 — the intended "cap concurrency at 3" was never actually
+  # applied to kanban dispatch. `max_concurrent_sessions` above (root-level
+  # key) only gates interactive session surfaces (hermes_cli/active_sessions.py,
+  # used by cli.py's _claim_active_session for chat/dashboard/gateway-platform
+  # sessions) — confirmed live by reading that module inside the running
+  # socialcampaignmanager-hermes container. The kanban dispatcher that spawns
+  # per-card worker processes (gateway/kanban_watchers.py) reads a completely
+  # separate set of keys (`max_spawn`, `max_in_progress`,
+  # `max_in_progress_per_profile`), none of which were set anywhere in this
+  # repo — confirmed 5 concurrent implementation-engineer worker processes
+  # live via `ps aux` in the container with no cap in effect. Using
+  # `max_in_progress_per_profile` specifically (not the global `max_in_progress`
+  # or `max_spawn`) since the intent was capping implementation-engineer
+  # concurrency, not sharing one pool of 3 across every specialist role.
+  max_in_progress_per_profile: 3
+
 skills:
   # Curated (Tier 1, read-only, human-authored) skills — ported 1:1 from
   # D:\code\eng-team-plugin\skills\, mounted read-only at /opt/curated-skills
